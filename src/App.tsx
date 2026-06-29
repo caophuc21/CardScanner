@@ -1233,7 +1233,7 @@ export default function App() {
 
       {/* BOTTOM NAV */}
       {["contacts", "profile"].includes(view) && (
-        <div className="fixed bottom-6 left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl px-6 py-3 flex justify-between items-center max-w-sm mx-auto shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] z-50">
+        <div className="bottom-nav-fixed left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl px-6 py-3 flex justify-between items-center max-w-sm mx-auto shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] z-50">
           <button 
             onClick={() => setView("contacts")}
             className={`flex flex-col items-center p-2 transition-all duration-300 ${view === "contacts" ? "text-white scale-110 drop-shadow-md" : "text-white/50 hover:text-white/80"}`}
