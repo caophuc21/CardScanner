@@ -1,8 +1,16 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
 import Logo from "./Logo";
+import { auth, isFirebaseConfigured } from "./firebase";
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  updateProfile
+} from "firebase/auth";
 
 type ViewState = "contacts" | "scanner" | "editor" | "detail" | "profile" | "profile-editor" | "settings";
 type Language = "en" | "vi";
@@ -206,24 +214,171 @@ export default function App() {
     }
   });
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem("isLoggedIn", "true");
-    setShowLoginPrompt(false);
-    
-    // Auto-fill profile to simulate synced cloud data if it is empty
-    if (!localStorage.getItem("userProfile")) {
-      const mockProfile: UserProfile = {
-        name: "Phúc Cao",
-        jobTitle: "Senior Software Engineer",
-        company: "CardScanner Corp",
-        phone: "+84 901 234 567",
-        email: "phuc.cao@cardscanner.io",
-        website: "https://cardscanner.io",
-        address: "Quận 1, TP. Hồ Chí Minh, Việt Nam"
-      };
-      setUserProfile(mockProfile);
-      localStorage.setItem("userProfile", JSON.stringify(mockProfile));
+  // Form input states
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (isFirebaseConfigured && auth) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          setIsLoggedIn(true);
+          localStorage.setItem("isLoggedIn", "true");
+          // If profile is empty, set user profile from firebase user data
+          if (!localStorage.getItem("userProfile")) {
+            const profile: UserProfile = {
+              name: user.displayName || user.email?.split("@")[0] || "User",
+              jobTitle: "Developer",
+              company: "Firebase Org",
+              phone: user.phoneNumber || "",
+              email: user.email || "",
+              website: "",
+              address: ""
+            };
+            setUserProfile(profile);
+            localStorage.setItem("userProfile", JSON.stringify(profile));
+          }
+        } else {
+          setIsLoggedIn(false);
+          localStorage.setItem("isLoggedIn", "false");
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || (authMode === "register" && !displayName)) {
+      setAuthError(lang === "vi" ? "Vui lòng nhập đầy đủ thông tin." : "Please fill in all fields.");
+      return;
+    }
+    if (password.length < 6) {
+      setAuthError(lang === "vi" ? "Mật khẩu phải từ 6 ký tự." : "Password must be at least 6 characters.");
+      return;
+    }
+
+    setAuthError(null);
+    setAuthLoading(true);
+
+    if (isFirebaseConfigured && auth) {
+      try {
+        if (authMode === "register") {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          await updateProfile(userCredential.user, { displayName });
+          const profile: UserProfile = {
+            name: displayName,
+            jobTitle: "Developer",
+            company: "Firebase Org",
+            phone: "",
+            email: email,
+            website: "",
+            address: ""
+          };
+          setUserProfile(profile);
+          localStorage.setItem("userProfile", JSON.stringify(profile));
+        } else {
+          await signInWithEmailAndPassword(auth, email, password);
+        }
+        setShowLoginPrompt(false);
+        setEmail("");
+        setPassword("");
+        setDisplayName("");
+      } catch (err: any) {
+        console.error("Firebase auth error:", err);
+        setAuthError(err.message || "Authentication failed");
+      } finally {
+        setAuthLoading(false);
+      }
+    } else {
+      setTimeout(() => {
+        try {
+          if (authMode === "register") {
+            const users = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+            if (users.some((u: any) => u.email === email)) {
+              setAuthError(lang === "vi" ? "Email đã được đăng ký." : "Email already registered.");
+              setAuthLoading(false);
+              return;
+            }
+            users.push({ email, password, displayName });
+            localStorage.setItem("mockUsers", JSON.stringify(users));
+            
+            const profile: UserProfile = {
+              name: displayName,
+              jobTitle: "Senior Software Engineer",
+              company: "CardScanner Corp",
+              phone: "+84 901 234 567",
+              email: email,
+              website: "https://cardscanner.io",
+              address: "Quận 1, TP. Hồ Chí Minh, Việt Nam"
+            };
+            setUserProfile(profile);
+            localStorage.setItem("userProfile", JSON.stringify(profile));
+          } else {
+            const users = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+            const foundUser = users.find((u: any) => u.email === email && u.password === password);
+            
+            if (email === "phuc.cao@cardscanner.io" && password === "123456") {
+              const profile: UserProfile = {
+                name: "Phúc Cao",
+                jobTitle: "Senior Software Engineer",
+                company: "CardScanner Corp",
+                phone: "+84 901 234 567",
+                email: "phuc.cao@cardscanner.io",
+                website: "https://cardscanner.io",
+                address: "Quận 1, TP. Hồ Chí Minh, Việt Nam"
+              };
+              setUserProfile(profile);
+              localStorage.setItem("userProfile", JSON.stringify(profile));
+            } else if (!foundUser) {
+              setAuthError(lang === "vi" ? "Sai email hoặc mật khẩu." : "Incorrect email or password.");
+              setAuthLoading(false);
+              return;
+            } else {
+              const profile: UserProfile = {
+                name: foundUser.displayName || "User",
+                jobTitle: "Developer",
+                company: "CardScanner Corp",
+                phone: "",
+                email: email,
+                website: "",
+                address: ""
+              };
+              setUserProfile(profile);
+              localStorage.setItem("userProfile", JSON.stringify(profile));
+            }
+          }
+          
+          setIsLoggedIn(true);
+          localStorage.setItem("isLoggedIn", "true");
+          setShowLoginPrompt(false);
+          setEmail("");
+          setPassword("");
+          setDisplayName("");
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setAuthLoading(false);
+        }
+      }, 1200);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (isFirebaseConfigured && auth) {
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Sign out error:", err);
+      }
+    } else {
+      setIsLoggedIn(false);
+      localStorage.setItem("isLoggedIn", "false");
     }
   };
 
@@ -868,7 +1023,7 @@ export default function App() {
                 
                 {isLoggedIn && (
                   <button 
-                    onClick={() => { setIsLoggedIn(false); localStorage.setItem("isLoggedIn", "false"); }}
+                    onClick={handleSignOut}
                     className="w-full flex items-center justify-center gap-2 p-4 bg-red-500/10 hover:bg-red-500/20 text-red-200 rounded-xl border border-red-500/20 transition-colors mt-6"
                   >
                     <LogOut size={20} />
@@ -924,60 +1079,146 @@ export default function App() {
       {/* LOGIN PROMPT MODAL */}
       {showLoginPrompt && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center px-4 pb-4 sm:pb-0">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowLoginPrompt(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { if (!authLoading) setShowLoginPrompt(false); }} />
           <div className="relative w-full max-w-sm bg-[#1a1a2e] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300 pb-6 pt-8 px-6">
             
             <button 
-              onClick={() => setShowLoginPrompt(false)}
+              onClick={() => { if (!authLoading) setShowLoginPrompt(false); }}
               className="absolute top-4 right-4 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-2 transition-colors"
+              disabled={authLoading}
             >
               <X size={20} />
             </button>
 
-            <div className="flex justify-center mb-6">
-              <Logo size={72} className="transform rotate-3 shadow-lg rounded-2xl" />
+            <div className="flex justify-center mb-4">
+              <Logo size={64} className="transform rotate-3 shadow-lg rounded-2xl" />
             </div>
             
-            <h2 className="text-2xl font-bold text-white text-center mb-3">
-              {t.loginTitle}
+            <h2 className="text-xl font-bold text-white text-center mb-1">
+              {authMode === "login" 
+                ? (lang === "vi" ? "Đăng nhập tài khoản" : "Sign In") 
+                : (lang === "vi" ? "Tạo tài khoản mới" : "Create Account")}
             </h2>
             
-            <p className="text-center text-white/70 text-sm mb-8 leading-relaxed">
+            <p className="text-center text-white/60 text-xs mb-4">
               {loginPromptReason === "limit" ? t.loginDescLimit : t.loginDesc}
             </p>
-            
-            <div className="space-y-3">
-              <button 
-                onClick={handleLogin}
-                className="w-full bg-white text-black font-semibold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-100 active:scale-[0.98] transition-all"
-              >
-                <Chrome size={20} />
-                {t.continueWithGoogle}
-              </button>
-              
-              <button 
-                onClick={handleLogin}
-                className="w-full bg-black text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-3 border border-white/20 hover:bg-white/10 active:scale-[0.98] transition-all"
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="css-i6dzq1"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"></path><path d="M10 2c1 .5 2 2 2 5"></path></svg>
-                {t.continueWithApple}
-              </button>
 
-              <button 
-                onClick={handleLogin}
-                className="w-full bg-transparent text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-3 border border-white/10 hover:bg-white/5 active:scale-[0.98] transition-all"
+            {!isFirebaseConfigured && (
+              <div className="mb-4 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-center text-[11px] font-medium leading-normal">
+                ⚠️ {lang === "vi" ? "Chế độ mô phỏng (Chưa cấu hình Firebase)" : "Simulated Mode (Firebase not configured)"}
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              {authMode === "register" && (
+                <div>
+                  <label className="block text-xs font-medium text-white/70 mb-1 ml-1">
+                    {lang === "vi" ? "Họ và tên" : "Full Name"}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40">
+                      <User size={16} />
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white outline-none focus:border-blue-500/50 focus:bg-white/10 transition placeholder:text-white/30"
+                      placeholder={lang === "vi" ? "Nhập họ tên của bạn" : "Enter your full name"}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-white/70 mb-1 ml-1">
+                  Email
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40">
+                    <Mail size={16} />
+                  </span>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white outline-none focus:border-blue-500/50 focus:bg-white/10 transition placeholder:text-white/30"
+                    placeholder={lang === "vi" ? "nhanvien@congty.com" : "email@company.com"}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-white/70 mb-1 ml-1">
+                  {lang === "vi" ? "Mật khẩu" : "Password"}
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-white/40">
+                    <Lock size={16} />
+                  </span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white outline-none focus:border-blue-500/50 focus:bg-white/10 transition placeholder:text-white/30"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-white/40 hover:text-white/60"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {authError && (
+                <div className="text-red-400 text-xs font-medium text-center bg-red-500/10 border border-red-500/20 py-2 px-3 rounded-xl leading-relaxed break-words">
+                  {authError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Mail size={20} />
-                {t.continueWithEmail}
+                {authLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    {lang === "vi" ? "Đang xử lý..." : "Processing..."}
+                  </>
+                ) : (
+                  <>
+                    <LogIn size={16} />
+                    {authMode === "login" 
+                      ? (lang === "vi" ? "Đăng nhập" : "Sign In") 
+                      : (lang === "vi" ? "Đăng ký tài khoản" : "Create Account")}
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-5 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(authMode === "login" ? "register" : "login");
+                  setAuthError(null);
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                disabled={authLoading}
+              >
+                {authMode === "login"
+                  ? (lang === "vi" ? "Chưa có tài khoản? Đăng ký ngay" : "Don't have an account? Sign Up")
+                  : (lang === "vi" ? "Đã có tài khoản? Đăng nhập" : "Already have an account? Sign In")}
               </button>
             </div>
-            
-            <button 
-              onClick={() => setShowLoginPrompt(false)}
-              className="w-full text-center text-white/50 text-sm font-medium mt-6 hover:text-white/80 transition-colors"
-            >
-              {t.notNow}
-            </button>
           </div>
         </div>
       )}
