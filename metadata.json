@@ -1,0 +1,1 @@
+{"name":"CardScanner","description":"A business card scanner that extracts contact info using AI and saves it locally.","requestFramePermissions":["camera"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
