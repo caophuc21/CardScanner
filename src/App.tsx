@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from "react";
 import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
-import { auth, isFirebaseConfigured } from "./firebase";
+import { auth, isFirebaseConfigured, db } from "./firebase";
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -12,6 +12,13 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from "firebase/auth";
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  writeBatch 
+} from "firebase/firestore";
 
 type ViewState = "contacts" | "scanner" | "editor" | "detail" | "profile" | "profile-editor" | "settings";
 type Language = "en" | "vi";
@@ -224,6 +231,118 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const [syncing, setSyncing] = useState(false);
+
+  const syncContacts = async (forceAlert = false) => {
+    if (!isFirebaseConfigured || !db || !auth.currentUser) {
+      if (forceAlert) {
+        alert(lang === "vi" ? "Firebase chưa được cấu hình hoặc bạn chưa đăng nhập." : "Firebase is not configured or you are not signed in.");
+      }
+      return;
+    }
+    
+    setSyncing(true);
+    try {
+      const uid = auth.currentUser.uid;
+      const contactsColRef = collection(db, "users", uid, "contacts");
+      
+      // 1. Fetch remote contacts from Firestore
+      const querySnapshot = await getDocs(contactsColRef);
+      const remoteContacts: Contact[] = [];
+      querySnapshot.forEach((doc) => {
+        remoteContacts.push({ id: doc.id, ...doc.data() } as Contact);
+      });
+      
+      let finalMergedContacts: Contact[] = [];
+      
+      // 2. Merge local and remote contacts in state
+      setContacts(prev => {
+        const mergedMap = new Map<string, Contact>();
+        
+        // Add all current contacts in state
+        prev.forEach(c => mergedMap.set(c.id, c));
+        
+        // Merge remote contacts
+        remoteContacts.forEach(rc => {
+          const existing = mergedMap.get(rc.id);
+          if (!existing || rc.createdAt > existing.createdAt) {
+            mergedMap.set(rc.id, rc);
+          }
+        });
+        
+        finalMergedContacts = Array.from(mergedMap.values());
+        localStorage.setItem("contacts", JSON.stringify(finalMergedContacts));
+        return finalMergedContacts;
+      });
+      
+      // 3. Batch write local changes to Firestore to sync any new local contacts
+      if (finalMergedContacts.length > 0) {
+        const batch = writeBatch(db);
+        finalMergedContacts.forEach(c => {
+          const docRef = doc(db, "users", uid, "contacts", c.id);
+          batch.set(docRef, c);
+        });
+        await batch.commit();
+      }
+      
+      if (forceAlert) {
+        alert(lang === "vi" ? "Đồng bộ đám mây thành công!" : "Cloud sync completed successfully!");
+      }
+    } catch (err) {
+      console.error("Sync error:", err);
+      if (forceAlert) {
+        alert(lang === "vi" ? `Lỗi đồng bộ: ${err}` : `Sync error: ${err}`);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    if (contacts.length === 0) {
+      alert(lang === "vi" ? "Không có danh bạ để xuất." : "No contacts to export.");
+      return;
+    }
+    
+    // Define CSV headers
+    const headers = ["Name", "Job Title", "Company", "Phone", "Email", "Website", "Address", "Tags", "Created At"];
+    
+    // Format rows
+    const rows = contacts.map(c => [
+      c.name || "",
+      c.jobTitle || "",
+      c.company || "",
+      c.phone || "",
+      c.email || "",
+      c.website || "",
+      c.address || "",
+      c.tags ? c.tags.join("; ") : "",
+      new Date(c.createdAt).toLocaleString()
+    ]);
+    
+    // Helper to escape CSV values
+    const escapeCSV = (val: string) => {
+      const escaped = String(val).replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(val => escapeCSV(val)).join(","))
+    ].join("\n");
+    
+    // Create Blob and trigger download
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: "text/csv;charset=utf-8;" }); // include UTF-8 BOM
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `contacts_export_${Date.now()}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     if (isFirebaseConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -244,6 +363,7 @@ export default function App() {
             setUserProfile(profile);
             localStorage.setItem("userProfile", JSON.stringify(profile));
           }
+          syncContacts(false);
         } else {
           setIsLoggedIn(false);
           localStorage.setItem("isLoggedIn", "false");
@@ -452,6 +572,9 @@ export default function App() {
   const saveContacts = (newContacts: Contact[]) => {
     setContacts(newContacts);
     localStorage.setItem("contacts", JSON.stringify(newContacts));
+    if (isFirebaseConfigured && auth && auth.currentUser) {
+      syncContacts(false);
+    }
   };
 
   const saveProfile = () => {
@@ -1034,9 +1157,12 @@ export default function App() {
                     if (!isLoggedIn) {
                       setLoginPromptReason("feature");
                       setShowLoginPrompt(true);
+                    } else {
+                      syncContacts(true);
                     }
                   }}
-                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors text-left"
+                  disabled={syncing}
+                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors text-left disabled:opacity-55"
                 >
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-500/20 p-2 rounded-lg text-blue-200">
@@ -1047,7 +1173,13 @@ export default function App() {
                       <p className="text-xs text-white/60 mt-0.5">{t.premiumFeature}</p>
                     </div>
                   </div>
-                  {isLoggedIn && <span className="text-xs font-medium bg-green-500/20 text-green-200 px-2 py-1 rounded-full">Active</span>}
+                  {isLoggedIn && (
+                    syncing ? (
+                      <Loader2 size={16} className="animate-spin text-white/50" />
+                    ) : (
+                      <span className="text-xs font-medium bg-green-500/20 text-green-200 px-2 py-1 rounded-full">Active</span>
+                    )
+                  )}
                 </button>
 
                 <button 
@@ -1055,6 +1187,8 @@ export default function App() {
                     if (!isLoggedIn) {
                       setLoginPromptReason("feature");
                       setShowLoginPrompt(true);
+                    } else {
+                      exportToCSV();
                     }
                   }}
                   className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors text-left mt-3"
