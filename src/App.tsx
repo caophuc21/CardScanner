@@ -1,7 +1,8 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
+import Logo from "./Logo";
 
 type ViewState = "contacts" | "scanner" | "editor" | "detail" | "profile" | "profile-editor" | "settings";
 type Language = "en" | "vi";
@@ -205,6 +206,27 @@ export default function App() {
     }
   });
 
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    localStorage.setItem("isLoggedIn", "true");
+    setShowLoginPrompt(false);
+    
+    // Auto-fill profile to simulate synced cloud data if it is empty
+    if (!localStorage.getItem("userProfile")) {
+      const mockProfile: UserProfile = {
+        name: "Phúc Cao",
+        jobTitle: "Senior Software Engineer",
+        company: "CardScanner Corp",
+        phone: "+84 901 234 567",
+        email: "phuc.cao@cardscanner.io",
+        website: "https://cardscanner.io",
+        address: "Quận 1, TP. Hồ Chí Minh, Việt Nam"
+      };
+      setUserProfile(mockProfile);
+      localStorage.setItem("userProfile", JSON.stringify(mockProfile));
+    }
+  };
+
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   
   // For scanning & editing
@@ -344,15 +366,18 @@ export default function App() {
           </button>
         )}
         
-        <h1 className="text-lg font-semibold tracking-tight drop-shadow-md">
-          {view === "contacts" && t.myCards}
-          {view === "scanner" && t.scanning}
-          {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
-          {view === "detail" && t.contact}
-          {view === "profile" && t.myProfile}
-          {view === "profile-editor" && t.editProfile}
-          {view === "settings" && t.settings}
-        </h1>
+        <div className="flex items-center gap-2">
+          {view === "contacts" && <Logo size={28} className="rounded-xl shadow-md border border-white/20" />}
+          <h1 className="text-lg font-semibold tracking-tight drop-shadow-md">
+            {view === "contacts" && t.myCards}
+            {view === "scanner" && t.scanning}
+            {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
+            {view === "detail" && t.contact}
+            {view === "profile" && t.myProfile}
+            {view === "profile-editor" && t.editProfile}
+            {view === "settings" && t.settings}
+          </h1>
+        </div>
         
         <div className="w-10 flex justify-end">
           {view === "contacts" && (
@@ -910,9 +935,7 @@ export default function App() {
             </button>
 
             <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3">
-                <Cloud size={32} className="text-white transform -rotate-3" />
-              </div>
+              <Logo size={72} className="transform rotate-3 shadow-lg rounded-2xl" />
             </div>
             
             <h2 className="text-2xl font-bold text-white text-center mb-3">
@@ -925,7 +948,7 @@ export default function App() {
             
             <div className="space-y-3">
               <button 
-                onClick={() => { setIsLoggedIn(true); localStorage.setItem("isLoggedIn", "true"); setShowLoginPrompt(false); }}
+                onClick={handleLogin}
                 className="w-full bg-white text-black font-semibold py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-100 active:scale-[0.98] transition-all"
               >
                 <Chrome size={20} />
@@ -933,7 +956,7 @@ export default function App() {
               </button>
               
               <button 
-                onClick={() => { setIsLoggedIn(true); localStorage.setItem("isLoggedIn", "true"); setShowLoginPrompt(false); }}
+                onClick={handleLogin}
                 className="w-full bg-black text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-3 border border-white/20 hover:bg-white/10 active:scale-[0.98] transition-all"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="css-i6dzq1"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"></path><path d="M10 2c1 .5 2 2 2 5"></path></svg>
@@ -941,7 +964,7 @@ export default function App() {
               </button>
 
               <button 
-                onClick={() => { setIsLoggedIn(true); localStorage.setItem("isLoggedIn", "true"); setShowLoginPrompt(false); }}
+                onClick={handleLogin}
                 className="w-full bg-transparent text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-3 border border-white/10 hover:bg-white/5 active:scale-[0.98] transition-all"
               >
                 <Mail size={20} />

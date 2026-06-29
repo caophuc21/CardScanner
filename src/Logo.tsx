@@ -1,0 +1,123 @@
+import React from "react";
+
+interface LogoProps {
+  className?: string;
+  size?: number;
+}
+
+export default function Logo({ className = "", size = 64 }: LogoProps) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 512 512" 
+      width={size} 
+      height={size} 
+      className={className}
+    >
+      <defs>
+        {/* Background Gradient */}
+        <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+          <stop offset="0%" stop-color="#1e1e38" />
+          <stop offset="100%" stop-color="#0a0a14" />
+        </radialGradient>
+
+        {/* Card Outer Glowing Border Gradient */}
+        <linearGradient id="cardBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00f2fe" />
+          <stop offset="50%" stop-color="#9b51e0" />
+          <stop offset="100%" stop-color="#4f46e5" />
+        </linearGradient>
+
+        {/* Card Body Gradient (Glassmorphism effect) */}
+        <linearGradient id="cardBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15" />
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
+        </linearGradient>
+
+        {/* Laser/Scan Line Gradient */}
+        <linearGradient id="scanLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#00f2fe" stop-opacity="0" />
+          <stop offset="15%" stop-color="#00f2fe" stop-opacity="1" />
+          <stop offset="50%" stop-color="#ffffff" stop-opacity="1" />
+          <stop offset="85%" stop-color="#9b51e0" stop-opacity="1" />
+          <stop offset="100%" stop-color="#9b51e0" stop-opacity="0" />
+        </linearGradient>
+
+        {/* Accent Glow Filter */}
+        <filter id="logoGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="12" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+
+        {/* Strong Laser Glow */}
+        <filter id="logoLaserGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="blur1" />
+          <feGaussianBlur stdDeviation="15" result="blur2" />
+          <feMerge>
+            <feMergeNode in="blur2" />
+            <feMergeNode in="blur1" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* Dark Tech Background */}
+      <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+
+      {/* Decorative Outer Tech Ring */}
+      <circle cx="256" cy="256" r="210" fill="none" stroke="url(#cardBorderGrad)" stroke-width="2" stroke-opacity="0.2" stroke-dasharray="15 10" />
+
+      <g transform="translate(256, 256) rotate(-15) translate(-256, -256)">
+        {/* Glowing Shadow under the Card */}
+        <rect x="116" y="166" width="280" height="180" rx="24" fill="#9b51e0" opacity="0.3" filter="url(#logoGlow)" />
+        
+        {/* Outer Card Border (Neon Gradient) */}
+        <rect x="116" y="166" width="280" height="180" rx="24" fill="none" stroke="url(#cardBorderGrad)" stroke-width="4.5" filter="url(#logoGlow)" />
+        <rect x="116" y="166" width="280" height="180" rx="24" fill="none" stroke="url(#cardBorderGrad)" stroke-width="2" />
+
+        {/* Glassmorphic Card Body */}
+        <rect x="118" y="168" width="276" height="176" rx="22" fill="url(#cardBodyGrad)" />
+
+        {/* Card Simulated Content (Minimalist Chip & Lines) */}
+        {/* Smart Chip */}
+        <rect x="150" y="200" width="38" height="28" rx="6" fill="#00f2fe" fill-opacity="0.8" />
+        <line x1="169" y1="200" x2="169" y2="228" stroke="#0a0a14" stroke-width="1.5" />
+        <line x1="150" y1="214" x2="188" y2="214" stroke="#0a0a14" stroke-width="1.5" />
+
+        {/* Text Lines Placeholder */}
+        <rect x="204" y="202" width="100" height="8" rx="4" fill="#ffffff" fill-opacity="0.8" />
+        <rect x="204" y="218" width="60" height="6" rx="3" fill="#ffffff" fill-opacity="0.4" />
+        
+        <rect x="150" y="250" width="160" height="6" rx="3" fill="#ffffff" fill-opacity="0.3" />
+        <rect x="150" y="264" width="130" height="6" rx="3" fill="#ffffff" fill-opacity="0.3" />
+        <rect x="150" y="278" width="90" height="6" rx="3" fill="#ffffff" fill-opacity="0.3" />
+        
+        {/* User Avatar Icon Placeholder inside Card */}
+        <circle cx="330" cy="270" r="22" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1.5" />
+        <circle cx="330" cy="264" r="8" fill="#ffffff" fill-opacity="0.6" />
+        <path d="M312,284 C312,276 320,274 330,274 C340,274 348,276 348,284" fill="#ffffff" fill-opacity="0.6" />
+      </g>
+
+      {/* Camera Aperture / Scan Focus Target (Centered) */}
+      <g filter="url(#logoGlow)">
+        <circle cx="256" cy="256" r="85" fill="none" stroke="#00f2fe" stroke-width="3" stroke-dasharray="40 25" />
+        <circle cx="256" cy="256" r="60" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.3" />
+      </g>
+      
+      {/* Corner Targets (Camera viewfinder) */}
+      <path d="M 120,170 L 120,130 L 160,130" fill="none" stroke="#00f2fe" stroke-width="5" stroke-linecap="round" />
+      <path d="M 392,170 L 392,130 L 352,130" fill="none" stroke="#00f2fe" stroke-width="5" stroke-linecap="round" />
+      <path d="M 120,342 L 120,382 L 160,382" fill="none" stroke="#00f2fe" stroke-width="5" stroke-linecap="round" />
+      <path d="M 392,342 L 392,382 L 352,382" fill="none" stroke="#00f2fe" stroke-width="5" stroke-linecap="round" />
+
+      {/* Horizontal Neon Scan Laser Line */}
+      <g filter="url(#logoLaserGlow)">
+        <line x1="60" y1="256" x2="452" y2="256" stroke="url(#scanLineGrad)" stroke-width="6" stroke-linecap="round" />
+      </g>
+      
+      {/* Tiny Tech Accents */}
+      <rect x="236" y="60" width="40" height="6" rx="3" fill="#00f2fe" opacity="0.8" />
+      <rect x="236" y="446" width="40" height="6" rx="3" fill="#9b51e0" opacity="0.8" />
+    </svg>
+  );
+}
