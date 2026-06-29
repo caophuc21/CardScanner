@@ -2,7 +2,6 @@ import React, { useState, useRef, useMemo, useEffect } from "react";
 import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
-import Logo from "./Logo";
 import { auth, isFirebaseConfigured } from "./firebase";
 import { 
   signInWithEmailAndPassword, 
@@ -521,18 +520,15 @@ export default function App() {
           </button>
         )}
         
-        <div className="flex items-center gap-2">
-          {view === "contacts" && <Logo size={28} className="rounded-xl shadow-md border border-white/20" />}
-          <h1 className="text-lg font-semibold tracking-tight drop-shadow-md">
-            {view === "contacts" && t.myCards}
-            {view === "scanner" && t.scanning}
-            {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
-            {view === "detail" && t.contact}
-            {view === "profile" && t.myProfile}
-            {view === "profile-editor" && t.editProfile}
-            {view === "settings" && t.settings}
-          </h1>
-        </div>
+        <h1 className="text-lg font-semibold tracking-tight drop-shadow-md">
+          {view === "contacts" && t.myCards}
+          {view === "scanner" && t.scanning}
+          {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
+          {view === "detail" && t.contact}
+          {view === "profile" && t.myProfile}
+          {view === "profile-editor" && t.editProfile}
+          {view === "settings" && t.settings}
+        </h1>
         
         <div className="w-10 flex justify-end">
           {view === "contacts" && (
@@ -1090,10 +1086,6 @@ export default function App() {
               <X size={20} />
             </button>
 
-            <div className="flex justify-center mb-4">
-              <Logo size={64} className="transform rotate-3 shadow-lg rounded-2xl" />
-            </div>
-            
             <h2 className="text-xl font-bold text-white text-center mb-1">
               {authMode === "login" 
                 ? (lang === "vi" ? "Đăng nhập tài khoản" : "Sign In") 
