@@ -8,7 +8,9 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "firebase/auth";
 
 type ViewState = "contacts" | "scanner" | "editor" | "detail" | "profile" | "profile-editor" | "settings";
@@ -378,6 +380,57 @@ export default function App() {
     } else {
       setIsLoggedIn(false);
       localStorage.setItem("isLoggedIn", "false");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    setAuthLoading(true);
+    if (isFirebaseConfigured && auth) {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        // Update user profile local storage
+        const profile: UserProfile = {
+          name: user.displayName || user.email?.split("@")[0] || "User",
+          jobTitle: "Developer",
+          company: "Google Org",
+          phone: user.phoneNumber || "",
+          email: user.email || "",
+          website: "",
+          address: ""
+        };
+        setUserProfile(profile);
+        localStorage.setItem("userProfile", JSON.stringify(profile));
+        
+        setShowLoginPrompt(false);
+      } catch (err: any) {
+        console.error("Google sign in error:", err);
+        setAuthError(err.message || "Google Sign-In failed");
+      } finally {
+        setAuthLoading(false);
+      }
+    } else {
+      // Mock Google sign in
+      setTimeout(() => {
+        const profile: UserProfile = {
+          name: "Mock Google User",
+          jobTitle: "Developer",
+          company: "Google Org",
+          phone: "+84 999 999 999",
+          email: "mock.google@gmail.com",
+          website: "",
+          address: ""
+        };
+        setUserProfile(profile);
+        localStorage.setItem("userProfile", JSON.stringify(profile));
+        setIsLoggedIn(true);
+        localStorage.setItem("isLoggedIn", "true");
+        setShowLoginPrompt(false);
+        setAuthLoading(false);
+      }, 1000);
     }
   };
 
@@ -1195,6 +1248,22 @@ export default function App() {
                 )}
               </button>
             </form>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-white/10"></div>
+              <span className="flex-shrink mx-4 text-white/40 text-xs">{lang === "vi" ? "hoặc" : "or"}</span>
+              <div className="flex-grow border-t border-white/10"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={authLoading}
+              className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl border border-white/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Chrome size={16} className="text-red-400" />
+              {t.continueWithGoogle}
+            </button>
 
             <div className="mt-5 text-center">
               <button
