@@ -567,6 +567,18 @@ export default function App() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  // Prevent background scrolling when scan menu or login modal is open
+  useEffect(() => {
+    if (showScanMenu || showLoginPrompt) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showScanMenu, showLoginPrompt]);
+
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -1281,9 +1293,9 @@ export default function App() {
 
       {/* SCAN SELECTION BOTTOM SHEET */}
       {showScanMenu && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center transition-all duration-300">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center transition-all duration-300">
           <div className="absolute inset-0" onClick={() => setShowScanMenu(false)} />
-          <div className="relative w-full max-w-md bg-zinc-900/90 border-t border-white/10 backdrop-blur-2xl rounded-t-[32px] p-6 shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-10 animate-in slide-in-from-bottom duration-200">
+          <div className="relative w-full max-w-md bg-zinc-900/90 border-t border-white/10 backdrop-blur-2xl rounded-t-[32px] p-6 shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-10 animate-in slide-in-from-bottom duration-200 max-h-[90dvh] overflow-y-auto">
             <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
             <h3 className="text-lg font-bold text-center text-white mb-6">Quét Danh Thiếp / Scan Card</h3>
             <div className="grid grid-cols-2 gap-4 mb-6">
