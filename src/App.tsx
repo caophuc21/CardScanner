@@ -10,7 +10,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  linkWithPopup
 } from "firebase/auth";
 import { 
   collection, 
@@ -341,6 +342,133 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  const getGoogleDriveToken = async (): Promise<string> => {
+    const cachedToken = sessionStorage.getItem("google_drive_token");
+    const expiry = sessionStorage.getItem("google_drive_token_expiry");
+    if (cachedToken && expiry && Date.now() < Number(expiry)) {
+      return cachedToken;
+    }
+
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error(lang === "vi" ? "Firebase chưa được cấu hình." : "Firebase is not configured.");
+    }
+
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/drive.file");
+
+    let result;
+    if (auth.currentUser) {
+      // Re-authenticate or link to get the token with Google Drive scope
+      result = await linkWithPopup(auth.currentUser, provider).catch(async (err) => {
+        // If already linked, linkWithPopup might fail, so we fall back to signInWithPopup
+        if (err.code === "auth/credential-already-in-use" || err.code === "auth/provider-already-linked") {
+          return await signInWithPopup(auth, provider);
+        }
+        throw err;
+      });
+    } else {
+      result = await signInWithPopup(auth, provider);
+    }
+
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential?.accessToken;
+    if (!token) {
+      throw new Error(lang === "vi" ? "Không lấy được access token từ Google." : "Could not retrieve Google access token.");
+    }
+
+    // Cache for 55 mins
+    sessionStorage.setItem("google_drive_token", token);
+    sessionStorage.setItem("google_drive_token_expiry", String(Date.now() + 55 * 60 * 1000));
+
+    return token;
+  };
+
+  const handleExportToGoogleDrive = async () => {
+    if (contacts.length === 0) {
+      alert(lang === "vi" ? "Không có danh bạ để xuất." : "No contacts to export.");
+      return;
+    }
+
+    setIsExportingToDrive(true);
+    setGdriveFileUrl(null);
+
+    try {
+      const token = await getGoogleDriveToken();
+
+      // 1. Generate CSV content
+      const headers = ["Name", "Job Title", "Company", "Phone", "Email", "Website", "Address", "Tags", "Created At"];
+      const rows = contacts.map(c => [
+        c.name || "",
+        c.jobTitle || "",
+        c.company || "",
+        c.phone || "",
+        c.email || "",
+        c.website || "",
+        c.address || "",
+        c.tags ? c.tags.join("; ") : "",
+        new Date(c.createdAt).toLocaleString()
+      ]);
+      const escapeCSV = (val: string) => {
+        const escaped = String(val).replace(/"/g, '""');
+        return `"${escaped}"`;
+      };
+      const csvContent = [
+        headers.join(","),
+        ...rows.map(row => row.map(val => escapeCSV(val)).join(","))
+      ].join("\n");
+
+      // 2. Upload to Google Drive
+      const metadata = {
+        name: `CardScanner_Contacts_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}`,
+        mimeType: "application/vnd.google-apps.spreadsheet", // Convert to Google Sheets
+      };
+
+      const boundary = "foo_bar_boundary";
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const closeDelimiter = `\r\n--${boundary}--`;
+
+      const requestBody =
+        delimiter +
+        "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+        JSON.stringify(metadata) +
+        delimiter +
+        "Content-Type: text/csv; charset=UTF-8\r\n\r\n" +
+        csvContent +
+        closeDelimiter;
+
+      const response = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": `multipart/related; boundary=${boundary}`,
+          },
+          body: requestBody,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Google API returned status ${response.status}`);
+      }
+
+      const fileData = await response.json();
+      const fileUrl = `https://docs.google.com/spreadsheets/d/${fileData.id}/edit`;
+      setGdriveFileUrl(fileUrl);
+      
+      alert(lang === "vi" 
+        ? "Xuất sang Google Drive thành công! Bạn có thể mở tệp Google Sheets ngay lập tức." 
+        : "Exported to Google Drive successfully! You can open the Google Sheets file now."
+      );
+    } catch (err: any) {
+      console.error("Google Drive export error:", err);
+      alert((lang === "vi" ? "Lỗi xuất sang Google Drive: " : "Failed to export to Google Drive: ") + (err.message || err));
+    } finally {
+      setIsExportingToDrive(false);
+    }
+  };
+
   useEffect(() => {
     if (isFirebaseConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -565,9 +693,14 @@ export default function App() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  // Prevent background scrolling when scan menu or login modal is open
+  // Export states
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExportingToDrive, setIsExportingToDrive] = useState(false);
+  const [gdriveFileUrl, setGdriveFileUrl] = useState<string | null>(null);
+
+  // Prevent background scrolling when scan menu, export menu, or login modal is open
   useEffect(() => {
-    if (showScanMenu || showLoginPrompt) {
+    if (showScanMenu || showExportMenu || showLoginPrompt) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -575,7 +708,7 @@ export default function App() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showScanMenu, showLoginPrompt]);
+  }, [showScanMenu, showExportMenu, showLoginPrompt]);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -1239,7 +1372,7 @@ export default function App() {
                       setLoginPromptReason("feature");
                       setShowLoginPrompt(true);
                     } else {
-                      exportToCSV();
+                      setShowExportMenu(true);
                     }
                   }}
                   className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors text-left mt-3"
@@ -1254,6 +1387,30 @@ export default function App() {
                     </div>
                   </div>
                 </button>
+
+                {gdriveFileUrl && (
+                  <a 
+                    href={gdriveFileUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-between p-4 bg-green-500/10 hover:bg-green-500/20 text-green-200 rounded-xl border border-green-500/20 transition-colors text-left mt-3 font-medium animate-in fade-in duration-300"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-green-500/20 p-2 rounded-lg text-green-400">
+                        <Cloud size={20} />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-green-300">
+                          {lang === "vi" ? "Mở Google Sheets" : "Open Google Sheets"}
+                        </h4>
+                        <p className="text-xs text-green-400/70 mt-0.5">
+                          {lang === "vi" ? "Xem file đã xuất trên Drive" : "View exported file in Drive"}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronLeft size={20} className="rotate-180 text-green-400" />
+                  </a>
+                )}
                 
                 {isLoggedIn && (
                   <button 
@@ -1329,6 +1486,55 @@ export default function App() {
               className="w-full py-4 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-2xl border border-white/10 font-medium transition-colors"
             >
               Hủy / Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* EXPORT OPTIONS BOTTOM SHEET */}
+      {showExportMenu && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center transition-all duration-300">
+          <div className="absolute inset-0" onClick={() => setShowExportMenu(false)} />
+          <div className="relative w-full max-w-md bg-zinc-900/90 border-t border-white/10 backdrop-blur-2xl rounded-t-[32px] p-6 shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-10 animate-in slide-in-from-bottom duration-200 max-h-[90dvh] overflow-y-auto">
+            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+            <h3 className="text-lg font-bold text-center text-white mb-6">
+              {lang === "vi" ? "Xuất dữ liệu danh bạ" : "Export Contact Data"}
+            </h3>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <button 
+                onClick={() => {
+                  setShowExportMenu(false);
+                  exportToCSV();
+                }}
+                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 mb-3 group-hover:bg-purple-500/30 transition-colors">
+                  <Download size={24} />
+                </div>
+                <span className="text-sm font-medium text-white/95">Tải file Excel (.csv)</span>
+                <span className="text-[10px] text-white/50 mt-1">Lưu về máy tính</span>
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setShowExportMenu(false);
+                  handleExportToGoogleDrive();
+                }}
+                disabled={isExportingToDrive}
+                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group disabled:opacity-50"
+              >
+                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-3 group-hover:bg-blue-500/30 transition-colors">
+                  {isExportingToDrive ? <Loader2 size={24} className="animate-spin" /> : <Cloud size={24} />}
+                </div>
+                <span className="text-sm font-medium text-white/95">Lưu Google Drive</span>
+                <span className="text-[10px] text-white/50 mt-1">Chuyển thành Google Sheets</span>
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowExportMenu(false)}
+              className="w-full py-4 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-2xl border border-white/10 font-medium transition-colors"
+            >
+              {lang === "vi" ? "Hủy" : "Cancel"}
             </button>
           </div>
         </div>
