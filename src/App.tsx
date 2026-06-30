@@ -253,27 +253,25 @@ export default function App() {
         remoteContacts.push({ id: doc.id, ...doc.data() } as Contact);
       });
       
-      let finalMergedContacts: Contact[] = [];
+      // 2. Merge local and remote contacts synchronously
+      const mergedMap = new Map<string, Contact>();
       
-      // 2. Merge local and remote contacts in state
-      setContacts(prev => {
-        const mergedMap = new Map<string, Contact>();
-        
-        // Add all current contacts in state
-        prev.forEach(c => mergedMap.set(c.id, c));
-        
-        // Merge remote contacts
-        remoteContacts.forEach(rc => {
-          const existing = mergedMap.get(rc.id);
-          if (!existing || rc.createdAt > existing.createdAt) {
-            mergedMap.set(rc.id, rc);
-          }
-        });
-        
-        finalMergedContacts = Array.from(mergedMap.values());
-        localStorage.setItem("contacts", JSON.stringify(finalMergedContacts));
-        return finalMergedContacts;
+      // Add all current contacts in state
+      contacts.forEach(c => mergedMap.set(c.id, c));
+      
+      // Merge remote contacts
+      remoteContacts.forEach(rc => {
+        const existing = mergedMap.get(rc.id);
+        if (!existing || rc.createdAt > existing.createdAt) {
+          mergedMap.set(rc.id, rc);
+        }
       });
+      
+      const finalMergedContacts = Array.from(mergedMap.values());
+      
+      // Update state and local storage
+      setContacts(finalMergedContacts);
+      localStorage.setItem("contacts", JSON.stringify(finalMergedContacts));
       
       // 3. Batch write local changes to Firestore to sync any new local contacts
       if (finalMergedContacts.length > 0) {
