@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
@@ -558,12 +558,14 @@ export default function App() {
   
   // For scanning & editing
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showScanMenu, setShowScanMenu] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Contact>>({});
   const [profileForm, setProfileForm] = useState<Partial<UserProfile>>(userProfile || {});
   const [tagInput, setTagInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -584,6 +586,39 @@ export default function App() {
     setView("profile");
   };
 
+  const compressImage = (base64: string, maxWidth = 1200, maxHeight = 1200, quality = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(base64);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => {
+        resolve(base64); // Fallback to original on error
+      };
+    });
+  };
+
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -596,21 +631,27 @@ export default function App() {
       setIsProcessing(true);
 
       try {
+        const compressedBase64 = await compressImage(base64);
+        setPreviewImage(compressedBase64); // Show compressed image for preview and state
+
         const res = await fetch("/api/extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64 }),
+          body: JSON.stringify({ image: compressedBase64 }),
         });
 
-        if (!res.ok) throw new Error("Failed to extract details");
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || `Server responded with status ${res.status}`);
+        }
         
         const { data } = await res.json();
         setEditForm(data);
         setTagInput("");
         setView("editor");
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
-        alert("Could not process the card. Please try again.");
+        alert(`Could not process the card. Error: ${err.message || err}\nPlease try again.`);
         setView("contacts");
       } finally {
         setIsProcessing(false);
@@ -1221,15 +1262,67 @@ export default function App() {
 
       </main>
 
-      {/* HIDDEN FILE INPUT FOR NATIVE CAMERA */}
+      {/* HIDDEN FILE INPUTS */}
       <input 
         type="file" 
         accept="image/*" 
         capture="environment"
         className="hidden"
-        ref={fileInputRef}
+        ref={cameraInputRef}
         onChange={handleCapture}
       />
+      <input 
+        type="file" 
+        accept="image/*" 
+        className="hidden"
+        ref={galleryInputRef}
+        onChange={handleCapture}
+      />
+
+      {/* SCAN SELECTION BOTTOM SHEET */}
+      {showScanMenu && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center transition-all duration-300">
+          <div className="absolute inset-0" onClick={() => setShowScanMenu(false)} />
+          <div className="relative w-full max-w-md bg-zinc-900/90 border-t border-white/10 backdrop-blur-2xl rounded-t-[32px] p-6 shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-10 animate-in slide-in-from-bottom duration-200">
+            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+            <h3 className="text-lg font-bold text-center text-white mb-6">Quét Danh Thiếp / Scan Card</h3>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <button 
+                onClick={() => {
+                  setShowScanMenu(false);
+                  cameraInputRef.current?.click();
+                }}
+                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-3 group-hover:bg-blue-500/30 transition-colors">
+                  <Camera size={24} />
+                </div>
+                <span className="text-sm font-medium text-white/95">Chụp ảnh mới</span>
+                <span className="text-[10px] text-white/50 mt-1">Sử dụng Camera</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setShowScanMenu(false);
+                  galleryInputRef.current?.click();
+                }}
+                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+              >
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3 group-hover:bg-emerald-500/30 transition-colors">
+                  <Upload size={24} />
+                </div>
+                <span className="text-sm font-medium text-white/95">Tải ảnh lên</span>
+                <span className="text-[10px] text-white/50 mt-1">Chọn từ thư viện</span>
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowScanMenu(false)}
+              className="w-full py-4 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-2xl border border-white/10 font-medium transition-colors"
+            >
+              Hủy / Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM NAV */}
       {["contacts", "profile"].includes(view) && (
@@ -1243,7 +1336,7 @@ export default function App() {
           </button>
           
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setShowScanMenu(true)}
             className="flex items-center justify-center bg-white/20 backdrop-blur-2xl border border-white/40 text-white w-16 h-16 rounded-full shadow-[0_8px_32px_0_rgba(255,255,255,0.2)] hover:bg-white/30 hover:scale-105 active:scale-95 transition-all -mt-10"
           >
             <ScanLine size={28} />

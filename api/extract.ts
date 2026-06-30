@@ -1,37 +1,38 @@
-import express from "express";
-import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-const app = express();
-const PORT = 3000;
-
-// Increase body limit for image payloads
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-app.post("/api/extract", async (req, res) => {
-  console.log("=== Received /api/extract request ===");
+export default async function handler(req: any, res: any) {
+  // CORS Headers for safety
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+  );
+
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
   try {
-    const { image } = req.body; // base64 string
+    const { image } = req.body;
     
     if (!image) {
-      console.warn("Extraction failed: No image payload provided");
       return res.status(400).json({ error: "No image provided" });
     }
 
     const mimeTypeMatch = image.match(/^data:(image\/\w+);base64,/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
-    console.log(`Detected MIME type: ${mimeType}, Base64 length: ${image.length}`);
-
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
 
-    console.log("Calling Gemini API (gemini-2.5-flash)...");
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
@@ -57,36 +58,12 @@ app.post("/api/extract", async (req, res) => {
     });
 
     if (response.text) {
-      console.log("Gemini API call successful!");
-      res.json({ data: JSON.parse(response.text) });
+      res.status(200).json({ data: JSON.parse(response.text) });
     } else {
-      console.error("Extraction failed: Empty response from AI");
       throw new Error("Empty response from AI");
     }
   } catch (error: any) {
     console.error("Extraction error:", error);
     res.status(500).json({ error: error.message || "Failed to extract card details" });
   }
-});
-
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
 }
-
-startServer();
