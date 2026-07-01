@@ -188,6 +188,70 @@ const generateUUID = () => {
   });
 };
 
+const parseTextWithRegex = (text: string): Partial<Contact> => {
+  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+  
+  let name = "";
+  let jobTitle = "";
+  let company = "";
+  let phone = "";
+  let email = "";
+  let website = "";
+  let address = "";
+
+  // Regular expressions for matching
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+  const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b(?:\+?\d{1,3})?\d{9,11}\b/;
+  const websiteRegex = /(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9-]+(?:\.[a-zA-Z]{2,})+(?:\/[^\s]*)?/;
+
+  // Try to find matches in lines
+  for (const line of lines) {
+    if (!email && emailRegex.test(line)) {
+      email = line.match(emailRegex)?.[0] || "";
+      continue;
+    }
+    if (!phone && phoneRegex.test(line)) {
+      phone = line.match(phoneRegex)?.[0] || "";
+      continue;
+    }
+    if (!website && websiteRegex.test(line)) {
+      // Avoid matching email domain as website
+      const match = line.match(websiteRegex)?.[0] || "";
+      if (match && !match.includes("@")) {
+        website = match;
+        continue;
+      }
+    }
+  }
+
+  // Simple heuristic for name, title, company from remaining lines
+  const unusedLines = lines.filter(line => 
+    !line.match(emailRegex) && 
+    !line.match(phoneRegex) && 
+    !line.match(websiteRegex)
+  );
+
+  if (unusedLines.length > 0) {
+    name = unusedLines[0]; // Usually first line has the name
+  }
+  if (unusedLines.length > 1) {
+    jobTitle = unusedLines[1]; // Usually second line has job title
+  }
+  if (unusedLines.length > 2) {
+    company = unusedLines[2]; // Usually third line has company
+  }
+  
+  // Find address: usually contains keywords like "Street", "Đường", "Phố", "Quận", "Huyện", "TP", "City", "No"
+  const addressLine = lines.find(line => 
+    /đường|phố|quận|phường|thành phố|tỉnh|huyện|street|road|avenue|floor|block|building|city|district|ward|no\./i.test(line)
+  );
+  if (addressLine) {
+    address = addressLine;
+  }
+
+  return { name, jobTitle, company, phone, email, website, address };
+};
+
 export default function App() {
   const [view, setView] = useState<ViewState>("contacts");
   
@@ -790,21 +854,48 @@ export default function App() {
         const compressedBase64 = await compressImage(base64);
         setPreviewImage(compressedBase64); // Show compressed image for preview and state
 
-        const res = await fetch("/api/extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: compressedBase64 }),
-        });
+        let data: Partial<Contact> | null = null;
+        let usedOfflineOCR = false;
 
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || `Server responded with status ${res.status}`);
+        // Try online Gemini API first if connected
+        if (navigator.onLine) {
+          try {
+            const res = await fetch("/api/extract", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: compressedBase64 }),
+            });
+
+            if (res.ok) {
+              const resData = await res.json();
+              data = resData.data;
+            } else {
+              console.warn("Online extraction API failed, falling back to local OCR...");
+            }
+          } catch (onlineErr) {
+            console.warn("Online extraction network error, falling back to local OCR:", onlineErr);
+          }
+        } else {
+          console.log("Device is offline, using local OCR...");
         }
-        
-        const { data } = await res.json();
+
+        // Fallback to Tesseract.js local OCR if online method did not yield data
+        if (!data) {
+          usedOfflineOCR = true;
+          const Tesseract = (await import("tesseract.js")).default;
+          const result = await Tesseract.recognize(compressedBase64, "eng+vie");
+          data = parseTextWithRegex(result.data.text);
+        }
+
         setEditForm(data);
         setTagInput("");
         setView("editor");
+        
+        if (usedOfflineOCR) {
+          alert(lang === "vi" 
+            ? "Bạn đang ngoại tuyến hoặc máy chủ quá tải. Đã sử dụng bộ nhận diện trên máy (Offline OCR) để trích xuất thông tin cơ bản." 
+            : "You are offline or the server is busy. Used on-device OCR to extract basic details.");
+        }
       } catch (err: any) {
         console.error(err);
         alert(`Could not process the card. Error: ${err.message || err}\nPlease try again.`);
