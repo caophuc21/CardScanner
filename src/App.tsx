@@ -176,6 +176,18 @@ const TRANSLATIONS = {
   }
 };
 
+const generateUUID = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback for non-secure contexts (e.g. http on mobile devices)
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export default function App() {
   const [view, setView] = useState<ViewState>("contacts");
   
@@ -234,7 +246,7 @@ export default function App() {
 
   const [syncing, setSyncing] = useState(false);
 
-  const syncContacts = async (forceAlert = false) => {
+  const syncContacts = async (forceAlert = false, contactsOverride?: Contact[]) => {
     if (!isFirebaseConfigured || !db || !auth.currentUser) {
       if (forceAlert) {
         alert(lang === "vi" ? "Firebase chưa được cấu hình hoặc bạn chưa đăng nhập." : "Firebase is not configured or you are not signed in.");
@@ -257,8 +269,9 @@ export default function App() {
       // 2. Merge local and remote contacts synchronously
       const mergedMap = new Map<string, Contact>();
       
-      // Add all current contacts in state
-      contacts.forEach(c => mergedMap.set(c.id, c));
+      // Add all current contacts in state (or override)
+      const localContacts = contactsOverride || contacts;
+      localContacts.forEach(c => mergedMap.set(c.id, c));
       
       // Merge remote contacts
       remoteContacts.forEach(rc => {
@@ -718,7 +731,7 @@ export default function App() {
     setContacts(newContacts);
     localStorage.setItem("contacts", JSON.stringify(newContacts));
     if (isFirebaseConfigured && auth && auth.currentUser) {
-      syncContacts(false);
+      syncContacts(false, newContacts);
     }
   };
 
@@ -807,7 +820,7 @@ export default function App() {
   const saveNewContact = () => {
     const tags = tagInput.split(',').map(t => t.trim()).filter(Boolean);
     const newContact: Contact = {
-      id: editForm.id || crypto.randomUUID(),
+      id: editForm.id || generateUUID(),
       name: editForm.name || "",
       jobTitle: editForm.jobTitle || "",
       company: editForm.company || "",
