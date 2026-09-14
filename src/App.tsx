@@ -246,11 +246,8 @@ export default function App() {
   const t = TRANSLATIONS[lang];
 
   useEffect(() => {
-    const theme = THEMES[themeKey] || THEMES.champagneGold;
-    document.body.style.backgroundColor = theme.background;
-    document.body.style.backgroundImage = theme.backgroundImage;
-    document.body.style.backgroundAttachment = "fixed";
-    document.body.style.backgroundSize = "cover";
+    document.body.style.backgroundColor = "#FFFFFF";
+    document.body.style.backgroundImage = "none";
   }, [themeKey]);
 
   const INITIAL_CONTACTS: Contact[] = [
@@ -807,12 +804,14 @@ export default function App() {
   // Export & Modal states
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   const [gdriveFileUrl, setGdriveFileUrl] = useState<string | null>(null);
 
-  // Prevent background scrolling when scan menu, export menu, exit modal, or login modal is open
+  // Prevent background scrolling when scan menu, export menu, exit modal, filter modal, account modal, or login modal is open
   useEffect(() => {
-    if (showScanMenu || showExportMenu || showLoginPrompt || showExitConfirmModal) {
+    if (showScanMenu || showExportMenu || showLoginPrompt || showExitConfirmModal || showFilterModal || showAccountModal) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -820,7 +819,7 @@ export default function App() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showScanMenu, showExportMenu, showLoginPrompt, showExitConfirmModal]);
+  }, [showScanMenu, showExportMenu, showLoginPrompt, showExitConfirmModal, showFilterModal, showAccountModal]);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -1048,10 +1047,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans text-white max-w-md mx-auto relative pb-24">
+    <div className="min-h-screen flex flex-col font-sans text-stone-900 bg-white max-w-md mx-auto relative pb-24">
       
       {/* HEADER */}
-      <header className="bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-4 flex items-center justify-between sticky top-4 z-20 shadow-sm rounded-3xl mx-4 mt-4 mb-2">
+      <header className="bg-white border border-stone-200 px-4 py-3.5 flex items-center justify-between sticky top-4 z-20 shadow-sm rounded-3xl mx-4 mt-4 mb-2">
         {["editor", "detail", "profile-editor", "settings"].includes(view) ? (
           <button 
             onClick={() => {
@@ -1059,21 +1058,21 @@ export default function App() {
               else if (view === "editor") setShowExitConfirmModal(true);
               else setView("contacts");
             }} 
-            className="p-2 -ml-2 rounded-full hover:bg-white/20 text-white transition"
+            className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
           >
             <ChevronLeft size={24} />
           </button>
         ) : (
           <button 
             onClick={() => setView("settings")}
-            className="p-2 -ml-2 rounded-full hover:bg-white/20 text-white transition"
+            className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
           >
             <Settings size={24} />
           </button>
         )}
         
-        <h1 className="text-lg font-semibold tracking-tight drop-shadow-md">
-          {view === "contacts" && t.myCards}
+        <h1 className="text-lg font-bold text-stone-900 tracking-tight">
+          {view === "contacts" && (lang === "vi" ? "Danh bạ" : t.myCards)}
           {view === "scanner" && t.scanning}
           {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
           {view === "detail" && t.contact}
@@ -1090,7 +1089,7 @@ export default function App() {
                 setTagInput("");
                 setView("editor");
               }}
-              className="p-2 -mr-2 rounded-full hover:bg-white/20 text-white transition"
+              className="p-2 -mr-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
             >
               <Plus size={24} />
             </button>
@@ -1102,7 +1101,7 @@ export default function App() {
                 setTagInput(selectedContact!.tags?.join(", ") || "");
                 setView("editor");
               }}
-              className="p-2 -mr-2 rounded-full hover:bg-white/20 text-white transition"
+              className="p-2 -mr-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
             >
               <Edit2 size={20} />
             </button>
@@ -1142,7 +1141,7 @@ export default function App() {
                   placeholder={lang === "vi" ? "Tìm kiếm tên, công ty, chức vụ..." : "Search name, company..."} 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white/80 backdrop-blur-md border border-stone-200 rounded-2xl py-3 pl-11 pr-10 text-stone-900 placeholder:text-stone-400 outline-none focus:bg-white focus:border-[#C5A880] transition shadow-sm text-sm"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3 pl-11 pr-10 text-stone-900 placeholder:text-stone-400 outline-none focus:bg-white focus:border-stone-900 transition shadow-xs text-sm font-medium"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
@@ -1150,8 +1149,18 @@ export default function App() {
                   </button>
                 )}
               </div>
-              <button className="p-3 bg-white/80 border border-stone-200 rounded-2xl text-stone-600 hover:bg-white transition shadow-sm">
+              <button 
+                onClick={() => setShowFilterModal(true)}
+                className={`p-3 border rounded-2xl transition shadow-xs relative ${
+                  selectedTag 
+                    ? 'bg-[#C5A880] text-stone-900 border-[#B89768]' 
+                    : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-white'
+                }`}
+              >
                 <SlidersHorizontal size={18} />
+                {selectedTag && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-stone-900 rounded-full border-2 border-white" />
+                )}
               </button>
             </div>
 
@@ -1159,51 +1168,35 @@ export default function App() {
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               <button 
                 onClick={() => setFilterTab("all")}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs ${
                   filterTab === "all" 
                     ? 'bg-[#C5A880] text-stone-900 border border-[#B89768]' 
-                    : 'bg-white/70 text-stone-700 border border-stone-200 hover:bg-white'
+                    : 'bg-stone-100 text-stone-700 border border-stone-200 hover:bg-stone-200'
                 }`}
               >
                 {lang === "vi" ? "Tất cả" : "All"}
               </button>
               <button 
                 onClick={() => setFilterTab("recent")}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs ${
                   filterTab === "recent" 
                     ? 'bg-[#C5A880] text-stone-900 border border-[#B89768]' 
-                    : 'bg-white/70 text-stone-700 border border-stone-200 hover:bg-white'
+                    : 'bg-stone-100 text-stone-700 border border-stone-200 hover:bg-stone-200'
                 }`}
               >
                 {lang === "vi" ? "Gần đây" : "Recent"}
               </button>
               <button 
                 onClick={() => setFilterTab("favorites")}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-xs ${
                   filterTab === "favorites" 
                     ? 'bg-[#C5A880] text-stone-900 border border-[#B89768]' 
-                    : 'bg-white/70 text-stone-700 border border-stone-200 hover:bg-white'
+                    : 'bg-stone-100 text-stone-700 border border-stone-200 hover:bg-stone-200'
                 }`}
               >
                 {lang === "vi" ? "Yêu thích" : "Favorites"}
               </button>
             </div>
-
-            {/* TAGS FILTER */}
-            {allTags.length > 0 && (
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                {allTags.map(tag => (
-                  <button 
-                    key={tag}
-                    onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                    className={`whitespace-nowrap flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all border ${tag === selectedTag ? 'bg-[#C5A880] text-stone-900 border-[#B89768]' : 'bg-white/50 text-stone-600 border-stone-200 hover:bg-white'}`}
-                  >
-                    <Tag size={10} className={tag === selectedTag ? "text-stone-900" : "text-stone-400"} />
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            )}
 
             {filteredContacts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center px-6">
@@ -1285,7 +1278,7 @@ export default function App() {
         {/* EDITOR (Contact) */}
         {view === "editor" && (
           <div className="p-4 space-y-6">
-            <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] border border-white/20 space-y-4">
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-200 space-y-4 text-stone-900">
               <FormField 
                 icon={<User size={18} />} 
                 label={t.fullName} 
@@ -1331,20 +1324,20 @@ export default function App() {
                 onChange={(val) => setEditForm({...editForm, address: val})} 
               />
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-white/90 mb-1.5 ml-1 drop-shadow-sm">
-                  <span className="text-white/80"><Tag size={18} /></span>
+                <label className="flex items-center gap-2 text-sm font-bold text-stone-900 mb-1.5 ml-1">
+                  <span className="text-stone-700"><Tag size={18} /></span>
                   {t.tags}
                 </label>
                 <input
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
-                  className="w-full bg-black/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 text-white outline-none focus:border-white/50 focus:bg-black/20 focus:ring-1 focus:ring-white/30 transition placeholder:text-white/50 shadow-inner"
+                  className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-900 outline-none focus:border-stone-900 focus:bg-white focus:ring-1 focus:ring-stone-900 transition placeholder:text-stone-400 font-medium text-sm"
                   placeholder={lang === "vi" ? "Nhập thẻ (ví dụ: Đối tác, VIP)..." : "Type tags..."}
                 />
                 {suggestedTags.length > 0 && (
                   <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
-                    <span className="text-[11px] font-medium text-white/60 mr-1">
+                    <span className="text-[11px] font-semibold text-stone-500 mr-1">
                       {lang === "vi" ? "Gợi ý thẻ:" : "Suggested tags:"}
                     </span>
                     {suggestedTags.map(tag => (
@@ -1352,9 +1345,9 @@ export default function App() {
                         key={tag}
                         type="button"
                         onClick={() => selectSuggestedTag(tag)}
-                        className="text-xs bg-white/15 hover:bg-white/25 active:scale-95 text-white border border-white/25 px-2.5 py-1 rounded-full flex items-center gap-1 transition-all shadow-sm"
+                        className="text-xs bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 border border-stone-300 px-2.5 py-1 rounded-full flex items-center gap-1 transition-all shadow-xs font-medium"
                       >
-                        <Plus size={12} className="text-white/70" />
+                        <Plus size={12} className="text-stone-500" />
                         {tag}
                       </button>
                     ))}
@@ -1365,7 +1358,7 @@ export default function App() {
             
             <button 
               onClick={saveNewContact}
-              className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-lg active:scale-95 text-white font-medium py-4 rounded-2xl border border-white/40 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] flex items-center justify-center gap-2 transition-all"
+              className="w-full bg-[#C5A880] hover:bg-[#B89768] active:scale-95 text-stone-900 font-bold py-4 rounded-2xl border border-[#B89768] shadow-sm flex items-center justify-center gap-2 transition-all"
             >
               <Save size={20} />
               {t.saveContact}
@@ -1664,14 +1657,18 @@ export default function App() {
             </div>
 
             {/* SETTINGS OPTIONS LIST */}
-            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-2 shadow-sm border border-stone-200 divide-y divide-stone-100">
+            <div className="bg-white rounded-3xl p-2 shadow-sm border border-stone-200 divide-y divide-stone-100 text-stone-900">
               <button 
                 onClick={() => {
-                  if (!isLoggedIn) setShowLoginPrompt(true);
+                  if (isLoggedIn || auth?.currentUser) {
+                    setShowAccountModal(true);
+                  } else {
+                    setShowLoginPrompt(true);
+                  }
                 }}
                 className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
               >
-                <span className="text-sm font-medium text-stone-800">
+                <span className="text-sm font-semibold text-stone-900">
                   {lang === "vi" ? "Tài khoản & đồng bộ" : "Account & Sync"}
                 </span>
                 <ChevronRight size={18} className="text-stone-400" />
@@ -1685,10 +1682,10 @@ export default function App() {
                 }}
                 className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
               >
-                <span className="text-sm font-medium text-stone-800">
+                <span className="text-sm font-semibold text-stone-900">
                   {lang === "vi" ? "Ngôn ngữ" : "Language"}
                 </span>
-                <div className="flex items-center gap-2 text-xs text-stone-500">
+                <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
                   <span>{lang === "vi" ? "Tiếng Việt" : "English"}</span>
                   <ChevronRight size={18} className="text-stone-400" />
                 </div>
@@ -1700,7 +1697,7 @@ export default function App() {
                 }}
                 className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
               >
-                <span className="text-sm font-medium text-stone-800">
+                <span className="text-sm font-semibold text-stone-900">
                   {lang === "vi" ? "Xuất dữ liệu" : "Export Data"}
                 </span>
                 <ChevronRight size={18} className="text-stone-400" />
@@ -1710,22 +1707,8 @@ export default function App() {
                 onClick={() => syncContacts(true)}
                 className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
               >
-                <span className="text-sm font-medium text-stone-800">
+                <span className="text-sm font-semibold text-stone-900">
                   {lang === "vi" ? "Sao lưu dữ liệu" : "Data Backup"}
-                </span>
-                <ChevronRight size={18} className="text-stone-400" />
-              </button>
-
-              <button className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left">
-                <span className="text-sm font-medium text-stone-800">
-                  {lang === "vi" ? "Hỗ trợ & phản hồi" : "Support & Feedback"}
-                </span>
-                <ChevronRight size={18} className="text-stone-400" />
-              </button>
-
-              <button className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left">
-                <span className="text-sm font-medium text-stone-800">
-                  {lang === "vi" ? "Giới thiệu ứng dụng" : "About App"}
                 </span>
                 <ChevronRight size={18} className="text-stone-400" />
               </button>
@@ -1892,6 +1875,130 @@ export default function App() {
                 {lang === "vi" ? "Quay lại" : "Discard"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ACCOUNT & SYNC MODAL */}
+      {showAccountModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0" onClick={() => setShowAccountModal(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200 text-stone-900 border border-stone-200">
+            <div className="w-16 h-16 rounded-full bg-[#E8E2D8] text-[#5C5243] border border-[#D5CDBD] flex items-center justify-center font-bold text-xl mx-auto mb-3">
+              {getInitials(userProfile?.name || auth?.currentUser?.email || "User")}
+            </div>
+            <h3 className="text-lg font-bold text-stone-900">
+              {userProfile?.name || auth?.currentUser?.displayName || "Tài khoản cá nhân"}
+            </h3>
+            <p className="text-xs text-stone-500 mb-6">
+              {auth?.currentUser?.email || userProfile?.email || "Đã đăng nhập và đồng bộ"}
+            </p>
+
+            <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 text-left space-y-3 mb-6">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-stone-500 font-medium">Trạng thái đồng bộ:</span>
+                <span className="text-emerald-700 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Tự động (Hoạt động)
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-stone-500 font-medium">Lần đồng bộ cuối:</span>
+                <span className="text-stone-800 font-medium">Vừa xong</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-stone-500 font-medium">Tổng danh bạ:</span>
+                <span className="text-stone-900 font-bold">{contacts.length} liên hệ</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  syncContacts(true);
+                  setShowAccountModal(false);
+                }}
+                className="flex-1 py-3 bg-[#C5A880] hover:bg-[#B89768] text-stone-900 font-semibold rounded-xl text-xs transition-colors shadow-xs"
+              >
+                Đồng bộ ngay
+              </button>
+              <button
+                onClick={() => setShowAccountModal(false)}
+                className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-xl text-xs transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAG FILTER MODAL */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center transition-all duration-300">
+          <div className="absolute inset-0" onClick={() => setShowFilterModal(false)} />
+          <div className="relative w-full max-w-md bg-white border-t border-stone-200 rounded-t-[32px] p-6 shadow-2xl z-10 animate-in slide-in-from-bottom duration-200 max-h-[80dvh] overflow-y-auto">
+            <div className="w-12 h-1 bg-stone-300 rounded-full mx-auto mb-6" />
+            
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <SlidersHorizontal size={20} className="text-[#C5A880]" />
+                {lang === "vi" ? "Bộ lọc thẻ danh bạ" : "Filter by Tags"}
+              </h3>
+              {selectedTag && (
+                <button 
+                  onClick={() => setSelectedTag(null)}
+                  className="text-xs text-red-600 hover:underline font-medium"
+                >
+                  {lang === "vi" ? "Bỏ lọc" : "Clear filter"}
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-stone-500 mb-4">
+              {lang === "vi" 
+                ? "Chọn thẻ để lọc danh bạ tương ứng:" 
+                : "Select a tag to filter your contacts:"}
+            </p>
+
+            {allTags.length === 0 ? (
+              <p className="text-sm text-stone-400 italic py-4 text-center">
+                {lang === "vi" ? "Chưa có thẻ nào trong hệ thống" : "No tags found"}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2 mb-6">
+                <button
+                  onClick={() => setSelectedTag(null)}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold transition-all border ${
+                    !selectedTag 
+                      ? 'bg-stone-900 text-white border-stone-900 shadow-xs' 
+                      : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                  }`}
+                >
+                  {lang === "vi" ? "Tất cả thẻ" : "All Tags"}
+                </button>
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                    className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                      selectedTag === tag 
+                        ? 'bg-[#C5A880] text-stone-900 border-[#B89768] shadow-xs' 
+                        : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                    }`}
+                  >
+                    <Tag size={12} className={selectedTag === tag ? "text-stone-900" : "text-stone-400"} />
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowFilterModal(false)}
+              className="w-full py-3.5 bg-stone-900 hover:bg-black text-white font-medium rounded-2xl transition-colors text-sm shadow-xs"
+            >
+              {lang === "vi" ? "Áp dụng" : "Apply Filter"}
+            </button>
           </div>
         </div>
       )}
@@ -2101,16 +2208,16 @@ function FormField({ icon, label, value, onChange, type = "text" }: {
 }) {
   return (
     <div>
-      <label className="flex items-center gap-2 text-sm font-medium text-white/90 mb-1.5 ml-1 drop-shadow-sm">
-        <span className="text-white/80">{icon}</span>
+      <label className="flex items-center gap-2 text-sm font-bold text-stone-900 mb-1.5 ml-1">
+        <span className="text-stone-700">{icon}</span>
         {label}
       </label>
       <input
         type={type}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-black/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 text-white outline-none focus:border-white/50 focus:bg-black/20 focus:ring-1 focus:ring-white/30 transition placeholder:text-white/50 shadow-inner"
-        placeholder={`Enter ${label.toLowerCase()}`}
+        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-900 outline-none focus:border-stone-900 focus:bg-white focus:ring-1 focus:ring-stone-900 transition placeholder:text-stone-400 font-medium text-sm"
+        placeholder={`Nhập ${label.toLowerCase()}`}
       />
     </div>
   );
