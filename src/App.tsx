@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight, CreditCard } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight, CreditCard, Trash2 } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
@@ -808,6 +808,70 @@ export default function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const profileAvatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Swipe & Deletion states
+  const [swipedContactId, setSwipedContactId] = useState<string | null>(null);
+  const touchStartRef = useRef<{ id: string; x: number; y: number } | null>(null);
+
+  const deleteContact = (id: string) => {
+    const updated = contacts.filter(c => c.id !== id);
+    saveContacts(updated);
+    if (selectedContact?.id === id) {
+      setSelectedContact(null);
+    }
+    setSwipedContactId(null);
+    if (view === "detail") {
+      setView("contacts");
+    }
+  };
+
+  const handleTouchStart = (id: string, e: React.TouchEvent) => {
+    touchStartRef.current = {
+      id,
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    };
+  };
+
+  const handleTouchMove = (id: string, e: React.TouchEvent) => {
+    if (!touchStartRef.current || touchStartRef.current.id !== id) return;
+    const diffX = touchStartRef.current.x - e.touches[0].clientX;
+    const diffY = Math.abs(touchStartRef.current.y - e.touches[0].clientY);
+    
+    if (diffX > 40 && diffY < 40) {
+      setSwipedContactId(id);
+    } else if (diffX < -20) {
+      if (swipedContactId === id) setSwipedContactId(null);
+    }
+  };
+
+  const handleContactAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setEditForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleProfileAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setProfileForm(prev => ({ ...prev, avatarUrl: reader.result as string }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Export & Modal states
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -979,7 +1043,10 @@ export default function App() {
       email: editForm.email || "",
       website: editForm.website || "",
       address: editForm.address || "",
+      notes: editForm.notes || "",
+      avatarUrl: editForm.avatarUrl || "",
       tags: tags,
+      isFavorite: editForm.isFavorite || false,
       createdAt: editForm.createdAt || Date.now(),
     };
     
@@ -1235,31 +1302,68 @@ export default function App() {
                 {filteredContacts.map(contact => (
                   <div
                     key={contact.id}
-                    onClick={() => { setSelectedContact(contact); setView("detail"); }}
-                    className="w-full bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-stone-200/70 flex items-center justify-between hover:bg-white active:scale-[0.99] transition-all text-left cursor-pointer group"
+                    className="relative overflow-hidden rounded-2xl group"
+                    onTouchStart={(e) => handleTouchStart(contact.id, e)}
+                    onTouchMove={(e) => handleTouchMove(contact.id, e)}
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-12 h-12 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-[#D5CDBD] shadow-xs group-hover:scale-105 transition-transform">
-                        {getInitials(contact.name)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-stone-900 text-base truncate">{contact.name || t.unknown}</h3>
-                        <p className="text-xs text-stone-500 truncate mt-0.5">
-                          {contact.jobTitle}{contact.jobTitle && contact.company ? " · " : ""}{contact.company}
-                        </p>
-                      </div>
+                    {/* RED SWIPE DELETE BUTTON */}
+                    <div className="absolute inset-y-0 right-0 w-20 bg-red-500 rounded-r-2xl flex items-center justify-center z-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteContact(contact.id);
+                        }}
+                        className="w-full h-full flex flex-col items-center justify-center text-white font-bold text-xs gap-1 active:bg-red-600"
+                      >
+                        <Trash2 size={18} />
+                        <span>Xoá</span>
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(contact.id);
+                    {/* CONTACT CARD */}
+                    <div
+                      onClick={() => {
+                        if (swipedContactId === contact.id) {
+                          setSwipedContactId(null);
+                        } else {
+                          setSelectedContact(contact);
+                          setView("detail");
+                        }
                       }}
-                      className="p-2 text-[#C5A880] hover:scale-110 transition-transform ml-2 shrink-0"
+                      className={`w-full bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-stone-200/70 flex items-center justify-between hover:bg-white active:scale-[0.99] transition-all text-left cursor-pointer relative z-10 ${
+                        swipedContactId === contact.id ? "-translate-x-20" : "translate-x-0"
+                      }`}
                     >
-                      <Star size={18} className={contact.isFavorite ? "fill-[#C5A880] text-[#C5A880]" : "text-stone-300"} />
-                    </button>
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-12 h-12 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-[#D5CDBD] shadow-xs overflow-hidden">
+                          {contact.avatarUrl ? (
+                            <img src={contact.avatarUrl} alt={contact.name} className="w-full h-full object-cover" />
+                          ) : (
+                            getInitials(contact.name)
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-stone-900 text-base truncate">{contact.name || t.unknown}</h3>
+                          <p className="text-xs text-stone-500 truncate mt-0.5">
+                            {contact.jobTitle}{contact.jobTitle && contact.company ? " · " : ""}{contact.company}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(contact.id);
+                          }}
+                          className="p-2 text-[#C5A880] hover:scale-110 transition-transform shrink-0"
+                        >
+                          <Star size={18} className={contact.isFavorite ? "fill-[#C5A880] text-[#C5A880]" : "text-stone-300"} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1299,6 +1403,30 @@ export default function App() {
         {view === "editor" && (
           <div className="p-4 space-y-6">
             <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-200 space-y-4 text-stone-900">
+              {/* AVATAR UPLOAD */}
+              <div className="flex flex-col items-center justify-center pb-2">
+                <div className="relative group">
+                  <div className="w-24 h-24 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-2xl border-2 border-[#D5CDBD] shadow-sm overflow-hidden">
+                    {editForm.avatarUrl ? (
+                      <img src={editForm.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      getInitials(editForm.name || "N V")
+                    )}
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-2.5 bg-[#C5A880] hover:bg-[#B89768] text-stone-900 rounded-full shadow-md transition active:scale-95 border-2 border-white"
+                    title="Tải ảnh đại diện"
+                  >
+                    <Camera size={16} />
+                  </button>
+                </div>
+                <span className="text-xs text-stone-500 font-medium mt-2">
+                  {editForm.avatarUrl ? (lang === "vi" ? "Đổi ảnh đại diện" : "Change avatar") : (lang === "vi" ? "Thêm ảnh đại diện" : "Add avatar")}
+                </span>
+              </div>
+
               <FormField 
                 icon={<User size={18} />} 
                 label={t.fullName} 
@@ -1343,6 +1471,22 @@ export default function App() {
                 value={editForm.address} 
                 onChange={(val) => setEditForm({...editForm, address: val})} 
               />
+
+              {/* NOTES FIELD */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-bold text-stone-900 mb-1.5 ml-1">
+                  <span className="text-stone-700"><MessageSquare size={18} /></span>
+                  {lang === "vi" ? "Ghi chú" : "Notes"}
+                </label>
+                <textarea
+                  rows={3}
+                  value={editForm.notes || ""}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-900 outline-none focus:border-stone-900 focus:bg-white focus:ring-1 focus:ring-stone-900 transition placeholder:text-stone-400 font-medium text-sm resize-none"
+                  placeholder={lang === "vi" ? "Nhập ghi chú cho liên hệ..." : "Enter notes for this contact..."}
+                />
+              </div>
+
               <div>
                 <label className="flex items-center gap-2 text-sm font-bold text-stone-900 mb-1.5 ml-1">
                   <span className="text-stone-700"><Tag size={18} /></span>
@@ -1390,15 +1534,19 @@ export default function App() {
         {view === "detail" && selectedContact && (
           <div className="p-4 space-y-5">
             <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-stone-200 flex flex-col items-center text-center relative overflow-hidden">
-              <div className="w-20 h-20 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-2xl mb-3 border border-[#D5CDBD] shadow-sm">
-                {getInitials(selectedContact.name)}
+              <div className="w-20 h-20 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-2xl mb-3 border border-[#D5CDBD] shadow-sm overflow-hidden">
+                {selectedContact.avatarUrl ? (
+                  <img src={selectedContact.avatarUrl} alt={selectedContact.name} className="w-full h-full object-cover" />
+                ) : (
+                  getInitials(selectedContact.name)
+                )}
               </div>
               <h2 className="text-xl font-bold text-stone-900 mb-0.5">{selectedContact.name || t.noName}</h2>
               <p className="text-xs font-medium text-stone-600">{selectedContact.jobTitle}</p>
               <p className="text-xs text-stone-500 mt-0.5">{selectedContact.company}</p>
               
-              {/* 4 CIRCULAR QUICK ACTIONS */}
-              <div className="grid grid-cols-4 gap-4 mt-6 w-full max-w-xs">
+              {/* 3 CIRCULAR QUICK ACTIONS */}
+              <div className="grid grid-cols-3 gap-6 mt-6 w-full max-w-xs">
                 <a 
                   href={`tel:${selectedContact.phone}`}
                   className="flex flex-col items-center gap-1.5 group"
@@ -1428,16 +1576,6 @@ export default function App() {
                   </div>
                   <span className="text-[11px] font-medium text-stone-600">Nhắn tin</span>
                 </a>
-
-                <button 
-                  onClick={exportToCSV}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
-                    <Download size={18} />
-                  </div>
-                  <span className="text-[11px] font-medium text-stone-600">Lưu</span>
-                </button>
               </div>
             </div>
 
@@ -1518,17 +1656,17 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-stone-800 leading-relaxed font-medium">
-                {selectedContact.notes || "Gặp tại sự kiện Tech Summit 2026"}
+                {selectedContact.notes || (lang === "vi" ? "Chưa có ghi chú" : "No notes yet")}
               </p>
             </div>
 
-            {/* SAVE TO CONTACTS BUTTON */}
+            {/* DELETE CONTACT BUTTON */}
             <button 
-              onClick={() => exportToCSV()}
-              className="w-full bg-[#C5A880] hover:bg-[#B89768] active:scale-98 text-stone-900 font-semibold py-3.5 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all text-sm"
+              onClick={() => deleteContact(selectedContact.id)}
+              className="w-full bg-red-50 hover:bg-red-100 active:scale-98 text-red-600 font-bold py-3.5 rounded-2xl border border-red-200 shadow-xs flex items-center justify-center gap-2 transition-all text-sm"
             >
-              <User size={18} />
-              {lang === "vi" ? "Lưu vào danh bạ" : "Save to contacts"}
+              <Trash2 size={18} />
+              {lang === "vi" ? "Xoá liên hệ" : "Delete contact"}
             </button>
           </div>
         )}
@@ -1598,6 +1736,30 @@ export default function App() {
         {view === "profile-editor" && (
            <div className="p-4 space-y-6">
            <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] border border-white/20 space-y-4">
+             {/* PROFILE AVATAR UPLOAD */}
+             <div className="flex flex-col items-center justify-center pb-2">
+               <div className="relative group">
+                 <div className="w-24 h-24 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-2xl border-2 border-[#D5CDBD] shadow-sm overflow-hidden">
+                   {profileForm.avatarUrl ? (
+                     <img src={profileForm.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                   ) : (
+                     getInitials(profileForm.name || "User")
+                   )}
+                 </div>
+                 <button 
+                   type="button"
+                   onClick={() => profileAvatarInputRef.current?.click()}
+                   className="absolute bottom-0 right-0 p-2.5 bg-[#C5A880] hover:bg-[#B89768] text-stone-900 rounded-full shadow-md transition active:scale-95 border-2 border-white"
+                   title="Tải ảnh đại diện"
+                 >
+                   <Camera size={16} />
+                 </button>
+               </div>
+               <span className="text-xs text-stone-500 font-medium mt-2">
+                 {profileForm.avatarUrl ? (lang === "vi" ? "Đổi ảnh đại diện" : "Change avatar") : (lang === "vi" ? "Thêm ảnh đại diện" : "Add avatar")}
+               </span>
+             </div>
+
              <FormField 
                icon={<User size={18} />} 
                label={t.fullName} 
@@ -1760,6 +1922,20 @@ export default function App() {
         className="hidden"
         ref={galleryInputRef}
         onChange={handleCapture}
+      />
+      <input 
+        type="file" 
+        accept="image/*" 
+        className="hidden"
+        ref={avatarInputRef}
+        onChange={handleContactAvatarChange}
+      />
+      <input 
+        type="file" 
+        accept="image/*" 
+        className="hidden"
+        ref={profileAvatarInputRef}
+        onChange={handleProfileAvatarChange}
       />
 
       {/* SCAN SELECTION BOTTOM SHEET */}

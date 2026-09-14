@@ -9,6 +9,7 @@ export interface Contact {
   address: string;
   tags?: string[];
   notes?: string;
+  avatarUrl?: string;
   isFavorite?: boolean;
   createdAt: number;
 }
@@ -21,4 +22,5 @@ export interface UserProfile {
   email: string;
   website: string;
   address: string;
+  avatarUrl?: string;
 }
