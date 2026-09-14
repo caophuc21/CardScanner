@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight, CreditCard } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
@@ -233,7 +233,15 @@ const parseTextWithRegex = (text: string): Partial<Contact> => {
 };
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [view, setView] = useState<ViewState>("contacts");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Settings
   const [lang, setLang] = useState<Language>(() => {
@@ -1049,6 +1057,46 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans text-stone-900 bg-white max-w-md mx-auto relative pb-24">
       
+      {/* SPLASH SCREEN OVERLAY */}
+      {showSplash && (
+        <div className="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-between p-8 transition-all duration-500 animate-in fade-in">
+          <div className="flex-1 flex flex-col items-center justify-center">
+            {/* LOGO ICON BOX */}
+            <div className="w-28 h-28 bg-[#FAF7F2] border border-[#EAE5DD] rounded-3xl p-3 shadow-md flex items-center justify-center mb-6 relative overflow-hidden">
+              <img 
+                src="/logo.png" 
+                alt="CardScanner Logo" 
+                className="w-full h-full object-contain drop-shadow-sm" 
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                  const fallback = (e.target as HTMLElement).nextElementSibling;
+                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                }}
+              />
+              <div className="hidden flex-col items-center justify-center text-[#C5A880]">
+                <CreditCard size={48} />
+              </div>
+            </div>
+            
+            <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight mb-2">
+              CardScanner
+            </h1>
+            <p className="text-stone-500 text-sm font-medium">
+              Quét & Quản lý Danh thiếp Thông minh
+            </p>
+          </div>
+
+          <div className="w-full max-w-xs space-y-3 pb-8 flex flex-col items-center">
+            <div className="w-32 h-1 bg-stone-100 rounded-full overflow-hidden">
+              <div className="h-full bg-[#C5A880] rounded-full animate-pulse w-3/4" />
+            </div>
+            <span className="text-xs text-stone-400 font-medium">
+              Đang khởi động...
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       {!["contacts", "settings"].includes(view) && (
         <header className="bg-white border border-stone-200 px-4 py-3.5 flex items-center justify-between sticky top-4 z-20 shadow-sm rounded-3xl mx-4 mt-4 mb-2">
