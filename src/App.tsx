@@ -1059,41 +1059,30 @@ export default function App() {
       
       {/* SPLASH SCREEN OVERLAY */}
       {showSplash && (
-        <div className="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-between p-8 transition-all duration-500 animate-in fade-in">
-          <div className="flex-1 flex flex-col items-center justify-center">
-            {/* LOGO ICON BOX */}
-            <div className="w-28 h-28 bg-[#FAF7F2] border border-[#EAE5DD] rounded-3xl p-3 shadow-md flex items-center justify-center mb-6 relative overflow-hidden">
-              <img 
-                src="/logo.png" 
-                alt="CardScanner Logo" 
-                className="w-full h-full object-contain drop-shadow-sm" 
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                  const fallback = (e.target as HTMLElement).nextElementSibling;
-                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                }}
-              />
-              <div className="hidden flex-col items-center justify-center text-[#C5A880]">
-                <CreditCard size={48} />
-              </div>
+        <div className="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-8 transition-all duration-500 animate-in fade-in">
+          {/* LOGO IMAGE */}
+          <div className="w-28 h-28 flex items-center justify-center mb-6">
+            <img 
+              src="/logo.png" 
+              alt="CardScanner Logo" 
+              className="w-full h-full object-contain" 
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+                const fallback = (e.target as HTMLElement).nextElementSibling;
+                if (fallback) (fallback as HTMLElement).style.display = 'flex';
+              }}
+            />
+            <div className="hidden flex-col items-center justify-center text-[#C5A880]">
+              <CreditCard size={64} />
             </div>
-            
-            <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight mb-2">
-              CardScanner
-            </h1>
-            <p className="text-stone-500 text-sm font-medium">
-              Quét & Quản lý Danh thiếp Thông minh
-            </p>
           </div>
-
-          <div className="w-full max-w-xs space-y-3 pb-8 flex flex-col items-center">
-            <div className="w-32 h-1 bg-stone-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#C5A880] rounded-full animate-pulse w-3/4" />
-            </div>
-            <span className="text-xs text-stone-400 font-medium">
-              Đang khởi động...
-            </span>
-          </div>
+          
+          <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight mb-2">
+            CardScanner
+          </h1>
+          <p className="text-stone-500 text-sm font-medium">
+            Quét & Quản lý Danh thiếp Thông minh
+          </p>
         </div>
       )}
 
