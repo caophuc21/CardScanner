@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
@@ -738,14 +738,15 @@ export default function App() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  // Export states
+  // Export & Modal states
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   const [gdriveFileUrl, setGdriveFileUrl] = useState<string | null>(null);
 
-  // Prevent background scrolling when scan menu, export menu, or login modal is open
+  // Prevent background scrolling when scan menu, export menu, exit modal, or login modal is open
   useEffect(() => {
-    if (showScanMenu || showExportMenu || showLoginPrompt) {
+    if (showScanMenu || showExportMenu || showLoginPrompt || showExitConfirmModal) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -753,7 +754,7 @@ export default function App() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showScanMenu, showExportMenu, showLoginPrompt]);
+  }, [showScanMenu, showExportMenu, showLoginPrompt, showExitConfirmModal]);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -913,6 +914,33 @@ export default function App() {
     return Array.from(tags).sort();
   }, [contacts]);
 
+  const currentTagQuery = useMemo(() => {
+    if (!tagInput) return "";
+    const parts = tagInput.split(",");
+    return parts[parts.length - 1].trim();
+  }, [tagInput]);
+
+  const existingTagList = useMemo(() => {
+    return tagInput.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+  }, [tagInput]);
+
+  const suggestedTags = useMemo(() => {
+    if (!currentTagQuery) {
+      return allTags.filter(t => !existingTagList.includes(t.toLowerCase())).slice(0, 5);
+    }
+    return allTags.filter(t => 
+      t.toLowerCase().includes(currentTagQuery.toLowerCase()) && 
+      !existingTagList.includes(t.toLowerCase())
+    ).slice(0, 5);
+  }, [allTags, currentTagQuery, existingTagList]);
+
+  const selectSuggestedTag = (tag: string) => {
+    const parts = tagInput.split(",");
+    parts[parts.length - 1] = " " + tag;
+    const newTagInput = parts.filter(p => p.trim().length > 0).join(", ") + ", ";
+    setTagInput(newTagInput);
+  };
+
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => {
       const matchesSearch = (c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -936,7 +964,7 @@ export default function App() {
           <button 
             onClick={() => {
               if (view === "profile-editor") setView("profile");
-              else if (view === "editor" && editForm.id) setView("detail");
+              else if (view === "editor") setShowExitConfirmModal(true);
               else setView("contacts");
             }} 
             className="p-2 -ml-2 rounded-full hover:bg-white/20 text-white transition"
@@ -1169,7 +1197,26 @@ export default function App() {
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   className="w-full bg-black/10 backdrop-blur-md border border-white/20 rounded-xl px-4 py-3 text-white outline-none focus:border-white/50 focus:bg-black/20 focus:ring-1 focus:ring-white/30 transition placeholder:text-white/50 shadow-inner"
+                  placeholder={lang === "vi" ? "Nhập thẻ (ví dụ: Đối tác, VIP)..." : "Type tags..."}
                 />
+                {suggestedTags.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[11px] font-medium text-white/60 mr-1">
+                      {lang === "vi" ? "Gợi ý thẻ:" : "Suggested tags:"}
+                    </span>
+                    {suggestedTags.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => selectSuggestedTag(tag)}
+                        className="text-xs bg-white/15 hover:bg-white/25 active:scale-95 text-white border border-white/25 px-2.5 py-1 rounded-full flex items-center gap-1 transition-all shadow-sm"
+                      >
+                        <Plus size={12} className="text-white/70" />
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             
@@ -1615,29 +1662,76 @@ export default function App() {
         </div>
       )}
 
+      {/* EXIT CONFIRMATION MODAL */}
+      {showExitConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowExitConfirmModal(false)} />
+          <div className="relative w-full max-w-sm bg-[#1a1a2e] border border-white/10 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              {lang === "vi" ? "Bạn có muốn quay lại?" : "Discard Changes?"}
+            </h3>
+            <p className="text-xs text-white/70 mb-6 leading-relaxed">
+              {lang === "vi" 
+                ? "Thông tin danh thiếp đang kiểm tra/chỉnh sửa chưa được lưu. Bạn có chắc chắn muốn thoát không?" 
+                : "Unsaved contact details will be lost. Are you sure you want to go back?"}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowExitConfirmModal(false)}
+                className="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-medium border border-white/10 transition-colors"
+              >
+                {lang === "vi" ? "Ở lại sửa" : "Stay"}
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitConfirmModal(false);
+                  setPreviewImage(null);
+                  if (editForm.id) {
+                    setView("detail");
+                  } else {
+                    setView("contacts");
+                  }
+                }}
+                className="flex-1 py-3 px-4 bg-red-500/80 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors shadow-lg"
+              >
+                {lang === "vi" ? "Quay lại" : "Discard"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* BOTTOM NAV */}
       {["contacts", "profile"].includes(view) && (
-        <div className="bottom-nav-fixed left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl px-6 py-3 flex justify-between items-center max-w-sm mx-auto shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] z-50">
+        <div className="bottom-nav-fixed left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl px-6 py-2 flex justify-around items-center max-w-sm mx-auto shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] z-50">
           <button 
             onClick={() => setView("contacts")}
-            className={`flex flex-col items-center p-2 transition-all duration-300 ${view === "contacts" ? "text-white scale-110 drop-shadow-md" : "text-white/50 hover:text-white/80"}`}
+            className={`flex flex-col items-center p-1.5 transition-all duration-300 ${view === "contacts" ? "text-white scale-105 drop-shadow-md font-semibold" : "text-white/50 hover:text-white/80"}`}
           >
-            <Users size={24} className="mb-1" />
+            <Users size={22} className="mb-1" />
             <span className="text-[10px] font-medium tracking-wide">{t.contacts}</span>
           </button>
           
           <button 
             onClick={() => setShowScanMenu(true)}
-            className="flex items-center justify-center bg-white/20 backdrop-blur-2xl border border-white/40 text-white w-16 h-16 rounded-full shadow-[0_8px_32px_0_rgba(255,255,255,0.2)] hover:bg-white/30 hover:scale-105 active:scale-95 transition-all -mt-10"
+            className="flex flex-col items-center p-1.5 transition-all duration-300 text-white hover:scale-105 active:scale-95 group"
           >
-            <ScanLine size={28} />
+            <div className="w-10 h-10 rounded-full bg-blue-500/30 border border-blue-400/40 flex items-center justify-center text-blue-200 group-hover:bg-blue-500/40 shadow-sm mb-1">
+              <ScanLine size={20} />
+            </div>
+            <span className="text-[10px] font-medium tracking-wide text-white/90">
+              {lang === "vi" ? "Quét" : "Scan"}
+            </span>
           </button>
           
           <button 
             onClick={() => setView("profile")}
-            className={`flex flex-col items-center p-2 transition-all duration-300 ${view === "profile" ? "text-white scale-110 drop-shadow-md" : "text-white/50 hover:text-white/80"}`}
+            className={`flex flex-col items-center p-1.5 transition-all duration-300 ${view === "profile" ? "text-white scale-105 drop-shadow-md font-semibold" : "text-white/50 hover:text-white/80"}`}
           >
-            <QrCode size={24} className="mb-1" />
+            <QrCode size={22} className="mb-1" />
             <span className="text-[10px] font-medium tracking-wide">{t.myCard}</span>
           </button>
         </div>
