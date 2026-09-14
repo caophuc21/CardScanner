@@ -17,6 +17,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  deleteDoc,
   getDocs, 
   writeBatch 
 } from "firebase/firestore";
@@ -815,15 +816,27 @@ export default function App() {
   const [swipedContactId, setSwipedContactId] = useState<string | null>(null);
   const touchStartRef = useRef<{ id: string; x: number; y: number } | null>(null);
 
-  const deleteContact = (id: string) => {
+  const deleteContact = async (id: string) => {
     const updated = contacts.filter(c => c.id !== id);
-    saveContacts(updated);
+    setContacts(updated);
+    localStorage.setItem("contacts", JSON.stringify(updated));
+
     if (selectedContact?.id === id) {
       setSelectedContact(null);
     }
     setSwipedContactId(null);
     if (view === "detail") {
       setView("contacts");
+    }
+
+    if (isFirebaseConfigured && db && auth?.currentUser) {
+      try {
+        const uid = auth.currentUser.uid;
+        const docRef = doc(db, "users", uid, "contacts", id);
+        await deleteDoc(docRef);
+      } catch (err) {
+        console.error("Error deleting remote contact:", err);
+      }
     }
   };
 
@@ -1153,58 +1166,18 @@ export default function App() {
         </div>
       )}
 
-      {/* HEADER */}
-      {!["contacts", "settings"].includes(view) && (
-        <header className="bg-white border border-stone-200 px-4 py-3.5 flex items-center justify-between sticky top-4 z-20 shadow-sm rounded-3xl mx-4 mt-4 mb-2">
-          {["editor", "detail", "profile-editor"].includes(view) ? (
-            <button 
-              onClick={() => {
-                if (view === "profile-editor") setView("profile");
-                else if (view === "editor") setShowExitConfirmModal(true);
-                else setView("contacts");
-              }} 
-              className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
-            >
-              <ChevronLeft size={24} />
-            </button>
-          ) : (
-            <div className="w-10" />
-          )}
-          
-          <h1 className="text-lg font-bold text-stone-900 tracking-tight">
-            {view === "scanner" && t.scanning}
-            {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
-            {view === "detail" && t.contact}
-            {view === "profile" && t.myProfile}
-            {view === "profile-editor" && t.editProfile}
-          </h1>
-          
-          <div className="w-10 flex justify-end">
-            {view === "detail" && (
-              <button 
-                onClick={() => {
-                  setEditForm(selectedContact!);
-                  setTagInput(selectedContact!.tags?.join(", ") || "");
-                  setView("editor");
-                }}
-                className="p-2 -mr-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
-              >
-                <Edit2 size={20} />
-              </button>
-            )}
-          </div>
-        </header>
-      )}
+
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
         
         {/* CONTACTS LIST WITH SEARCH & TAGS */}
         {view === "contacts" && (
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 pt-0">
             
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-stone-900 drop-shadow-sm">
+            {/* STICKY HEADER */}
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-3.5 flex items-center justify-between border-b border-stone-100 -mx-4 px-4 mb-3">
+              <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
                 {lang === "vi" ? "Danh bạ" : "Contacts"}
               </h2>
               <button 
@@ -1213,7 +1186,8 @@ export default function App() {
                   setTagInput("");
                   setView("editor");
                 }}
-                className="p-2.5 rounded-full bg-[#C5A880] text-stone-900 hover:bg-[#B89768] transition shadow-sm"
+                className="p-2.5 rounded-full bg-[#C5A880] text-stone-900 hover:bg-[#B89768] transition shadow-xs active:scale-95"
+                aria-label="Add Contact"
               >
                 <Plus size={20} />
               </button>
@@ -1307,17 +1281,22 @@ export default function App() {
                     onTouchMove={(e) => handleTouchMove(contact.id, e)}
                   >
                     {/* RED SWIPE DELETE BUTTON */}
-                    <div className="absolute inset-y-0 right-0 w-20 bg-red-500 rounded-r-2xl flex items-center justify-center z-0">
+                    <div 
+                      className={`absolute inset-y-0 right-0 z-0 flex items-center justify-end pr-1 transition-all duration-300 ${
+                        swipedContactId === contact.id ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-90 pointer-events-none"
+                      }`}
+                    >
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           deleteContact(contact.id);
                         }}
-                        className="w-full h-full flex flex-col items-center justify-center text-white font-bold text-xs gap-1 active:bg-red-600"
+                        className="bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold text-xs flex flex-col items-center justify-center h-full px-5 rounded-2xl shadow-sm transition-all"
                       >
                         <Trash2 size={18} />
-                        <span>Xoá</span>
+                        <span className="mt-1">Xoá</span>
                       </button>
                     </div>
 
@@ -1331,8 +1310,8 @@ export default function App() {
                           setView("detail");
                         }
                       }}
-                      className={`w-full bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-stone-200/70 flex items-center justify-between hover:bg-white active:scale-[0.99] transition-all text-left cursor-pointer relative z-10 ${
-                        swipedContactId === contact.id ? "-translate-x-20" : "translate-x-0"
+                      className={`w-full bg-white p-4 rounded-2xl shadow-sm border border-stone-200/80 flex items-center justify-between hover:bg-stone-50/50 active:scale-[0.99] transition-transform duration-300 text-left cursor-pointer relative z-10 ${
+                        swipedContactId === contact.id ? "-translate-x-24" : "translate-x-0"
                       }`}
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
@@ -1401,7 +1380,20 @@ export default function App() {
 
         {/* EDITOR (Contact) */}
         {view === "editor" && (
-          <div className="p-4 space-y-6">
+          <div className="p-4 space-y-6 pt-0">
+            {/* STICKY HEADER */}
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-3.5 flex items-center gap-3 border-b border-stone-100 -mx-4 px-4 mb-3">
+              <button 
+                onClick={() => setShowExitConfirmModal(true)}
+                className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition active:scale-95"
+                aria-label="Back"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+                {editForm.id ? (lang === "vi" ? "Chỉnh sửa liên hệ" : "Edit Contact") : (lang === "vi" ? "Kiểm tra thông tin" : "Review Details")}
+              </h2>
+            </div>
             <div className="bg-white p-5 rounded-3xl shadow-sm border border-stone-200 space-y-4 text-stone-900">
               {/* AVATAR UPLOAD */}
               <div className="flex flex-col items-center justify-center pb-2">
@@ -1532,7 +1524,33 @@ export default function App() {
 
         {/* CONTACT DETAIL */}
         {view === "detail" && selectedContact && (
-          <div className="p-4 space-y-5">
+          <div className="p-4 space-y-5 pt-0">
+            {/* STICKY HEADER */}
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-3.5 flex items-center justify-between border-b border-stone-100 -mx-4 px-4 mb-3">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setView("contacts")}
+                  className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition active:scale-95"
+                  aria-label="Back"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+                  {lang === "vi" ? "Liên hệ" : "Contact"}
+                </h2>
+              </div>
+              <button 
+                onClick={() => {
+                  setEditForm(selectedContact);
+                  setTagInput(selectedContact.tags?.join(", ") || "");
+                  setView("editor");
+                }}
+                className="p-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
+                aria-label="Edit"
+              >
+                <Edit2 size={20} />
+              </button>
+            </div>
             <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-stone-200 flex flex-col items-center text-center relative overflow-hidden">
               <div className="w-20 h-20 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-2xl mb-3 border border-[#D5CDBD] shadow-sm overflow-hidden">
                 {selectedContact.avatarUrl ? (
@@ -1673,7 +1691,25 @@ export default function App() {
 
         {/* MY PROFILE */}
         {view === "profile" && (
-          <div className="p-4">
+          <div className="p-4 pt-0">
+            {/* STICKY HEADER */}
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-3.5 flex items-center justify-between border-b border-stone-100 -mx-4 px-4 mb-3">
+              <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+                {lang === "vi" ? "Thẻ của tôi" : "My Card"}
+              </h2>
+              {userProfile && (
+                <button 
+                  onClick={() => {
+                    setProfileForm(userProfile);
+                    setView("profile-editor");
+                  }}
+                  className="p-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
+                  aria-label="Edit Profile"
+                >
+                  <Edit2 size={20} />
+                </button>
+              )}
+            </div>
             {!userProfile ? (
               <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] border border-white/20 flex flex-col items-center text-center">
                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white mb-6 border border-white/30">
@@ -1734,7 +1770,20 @@ export default function App() {
 
         {/* PROFILE EDITOR */}
         {view === "profile-editor" && (
-           <div className="p-4 space-y-6">
+           <div className="p-4 space-y-6 pt-0">
+            {/* STICKY HEADER */}
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-3.5 flex items-center gap-3 border-b border-stone-100 -mx-4 px-4 mb-3">
+              <button 
+                onClick={() => setView("profile")}
+                className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition active:scale-95"
+                aria-label="Back"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+                {lang === "vi" ? "Sửa thẻ của tôi" : "Edit Profile"}
+              </h2>
+            </div>
            <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] border border-white/20 space-y-4">
              {/* PROFILE AVATAR UPLOAD */}
              <div className="flex flex-col items-center justify-center pb-2">
@@ -1818,16 +1867,17 @@ export default function App() {
 
         {/* SETTINGS */}
         {view === "settings" && (
-          <div className="p-4 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
+          <div className="p-4 space-y-4 pt-0">
+            {/* STICKY HEADER */}
+            <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-3.5 flex items-center gap-3 border-b border-stone-100 -mx-4 px-4 mb-3">
               <button 
                 onClick={() => setView("contacts")}
-                className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
+                className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition active:scale-95"
                 aria-label="Back"
               >
                 <ChevronLeft size={24} />
               </button>
-              <h2 className="text-2xl font-bold text-stone-900">
+              <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
                 {lang === "vi" ? "Cài đặt" : "Settings"}
               </h2>
             </div>
