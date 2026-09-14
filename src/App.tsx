@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
@@ -25,6 +25,11 @@ type ViewState = "contacts" | "scanner" | "editor" | "detail" | "profile" | "pro
 type Language = "en" | "vi";
 
 const THEMES = {
+  champagneGold: {
+    name: "Champagne Gold",
+    background: "#F5F2EC",
+    backgroundImage: "linear-gradient(135deg, #F6F3ED 0%, #EDE7DC 50%, #F5F2EC 100%)"
+  },
   liquidGlass: {
     name: "Liquid Glass",
     background: "#4158D0",
@@ -39,31 +44,6 @@ const THEMES = {
     name: "Emerald Aurora",
     background: "#064e3b",
     backgroundImage: "radial-gradient(at 0% 0%, hsla(160,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(140,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 100%, hsla(170,49%,30%,1) 0, transparent 50%)"
-  },
-  sunsetGlow: {
-    name: "Sunset Glow",
-    background: "#7f1d1d",
-    backgroundImage: "radial-gradient(at 0% 0%, hsla(10,50%,20%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(30,50%,30%,1) 0, transparent 50%), radial-gradient(at 100% 100%, hsla(350,50%,30%,1) 0, transparent 50%)"
-  },
-  oceanBlue: {
-    name: "Ocean Blue",
-    background: "#0f172a",
-    backgroundImage: "radial-gradient(at 0% 0%, hsla(210,50%,20%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(190,60%,30%,1) 0, transparent 50%), radial-gradient(at 100% 100%, hsla(230,50%,30%,1) 0, transparent 50%)"
-  },
-  goldenAmber: {
-    name: "Golden Amber",
-    background: "#78350f",
-    backgroundImage: "radial-gradient(at 0% 0%, hsla(45,80%,30%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(35,80%,40%,1) 0, transparent 50%), radial-gradient(at 100% 100%, hsla(25,80%,30%,1) 0, transparent 50%)"
-  },
-  slateGray: {
-    name: "Slate Gray",
-    background: "#1f2937",
-    backgroundImage: "radial-gradient(at 0% 0%, hsla(210,10%,15%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(210,10%,25%,1) 0, transparent 50%), radial-gradient(at 100% 100%, hsla(210,10%,20%,1) 0, transparent 50%)"
-  },
-  silverFrost: {
-    name: "Silver Frost",
-    background: "#4b5563",
-    backgroundImage: "radial-gradient(at 0% 0%, hsla(210,5%,35%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(210,10%,45%,1) 0, transparent 50%), radial-gradient(at 100% 100%, hsla(210,5%,40%,1) 0, transparent 50%)"
   }
 };
 
@@ -260,26 +240,112 @@ export default function App() {
     return (localStorage.getItem("lang") as Language) || "vi";
   });
   const [themeKey, setThemeKey] = useState<keyof typeof THEMES>(() => {
-    return (localStorage.getItem("theme") as keyof typeof THEMES) || "liquidGlass";
+    return (localStorage.getItem("theme") as keyof typeof THEMES) || "champagneGold";
   });
 
   const t = TRANSLATIONS[lang];
 
   useEffect(() => {
-    const theme = THEMES[themeKey];
+    const theme = THEMES[themeKey] || THEMES.champagneGold;
     document.body.style.backgroundColor = theme.background;
     document.body.style.backgroundImage = theme.backgroundImage;
     document.body.style.backgroundAttachment = "fixed";
     document.body.style.backgroundSize = "cover";
   }, [themeKey]);
-  
+
+  const INITIAL_CONTACTS: Contact[] = [
+    {
+      id: "c1",
+      name: "Nguyễn Thị Mai Anh",
+      jobTitle: "Business Development Manager",
+      company: "ABC Company",
+      phone: "+84 912 345 678",
+      email: "mai.anh@company.com",
+      website: "www.company.com",
+      address: "Tầng 12, Tòa nhà ABC, Quận 1, TP. HCM",
+      tags: ["Đối tác", "VIP"],
+      notes: "Gặp tại sự kiện Tech Summit 2026",
+      isFavorite: true,
+      createdAt: Date.now() - 1000 * 60 * 30
+    },
+    {
+      id: "c2",
+      name: "Trần Minh Đức",
+      jobTitle: "CEO",
+      company: "Global Group",
+      phone: "+84 903 123 456",
+      email: "duc.tran@globalgroup.com",
+      website: "www.globalgroup.com",
+      address: "Quận 3, TP. HCM",
+      tags: ["Khách hàng"],
+      isFavorite: false,
+      createdAt: Date.now() - 1000 * 60 * 60 * 2
+    },
+    {
+      id: "c3",
+      name: "Lê Hoàng Yến",
+      jobTitle: "Marketing Director",
+      company: "Sunrise Media",
+      phone: "+84 988 234 567",
+      email: "yen.le@sunrisemedia.vn",
+      website: "www.sunrisemedia.vn",
+      address: "Quận 1, TP. HCM",
+      tags: ["Media", "Đối tác"],
+      isFavorite: false,
+      createdAt: Date.now() - 1000 * 60 * 60 * 5
+    },
+    {
+      id: "c4",
+      name: "Phạm Quốc Hùng",
+      jobTitle: "Sales Manager",
+      company: "Viettel Solutions",
+      phone: "+84 918 345 678",
+      email: "hung.pham@viettel.vn",
+      website: "www.viettelsolutions.vn",
+      address: "Cầu Giấy, Hà Nội",
+      tags: ["Viễn thông"],
+      isFavorite: false,
+      createdAt: Date.now() - 1000 * 60 * 60 * 24
+    },
+    {
+      id: "c5",
+      name: "Đỗ Thị Thanh",
+      jobTitle: "HR Manager",
+      company: "NextGen",
+      phone: "+84 977 456 789",
+      email: "thanh.do@nextgen.io",
+      website: "www.nextgen.io",
+      address: "Nam Từ Liêm, Hà Nội",
+      tags: ["Tuyển dụng"],
+      isFavorite: false,
+      createdAt: Date.now() - 1000 * 60 * 60 * 30
+    },
+    {
+      id: "c6",
+      name: "Nguyễn Văn Long",
+      jobTitle: "Founder & CEO",
+      company: "GreenTech",
+      phone: "+84 966 567 890",
+      email: "long.nguyen@greentech.vn",
+      website: "www.greentech.vn",
+      address: "Bình Thạnh, TP. HCM",
+      tags: ["Startup"],
+      isFavorite: false,
+      createdAt: Date.now() - 1000 * 60 * 60 * 48
+    }
+  ];
+
   // State: Contacts
   const [contacts, setContacts] = useState<Contact[]>(() => {
     try {
       const saved = localStorage.getItem("contacts");
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_CONTACTS;
     } catch {
-      return [];
+      return INITIAL_CONTACTS;
     }
   });
   
@@ -759,6 +825,24 @@ export default function App() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [filterTab, setFilterTab] = useState<"all" | "recent" | "favorites">("all");
+
+  const getInitials = (name: string) => {
+    if (!name) return "NA";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    const first = parts[0][0];
+    const last = parts[parts.length - 1][0];
+    return (first + last).toUpperCase();
+  };
+
+  const toggleFavorite = (id: string) => {
+    const updated = contacts.map(c => c.id === id ? { ...c, isFavorite: !c.isFavorite } : c);
+    saveContacts(updated);
+    if (selectedContact && selectedContact.id === id) {
+      setSelectedContact({ ...selectedContact, isFavorite: !selectedContact.isFavorite });
+    }
+  };
 
   const saveContacts = (newContacts: Contact[]) => {
     setContacts(newContacts);
@@ -925,8 +1009,8 @@ export default function App() {
   }, [tagInput]);
 
   const suggestedTags = useMemo(() => {
-    if (!currentTagQuery) {
-      return allTags.filter(t => !existingTagList.includes(t.toLowerCase())).slice(0, 5);
+    if (!currentTagQuery.trim()) {
+      return [];
     }
     return allTags.filter(t => 
       t.toLowerCase().includes(currentTagQuery.toLowerCase()) && 
@@ -943,12 +1027,20 @@ export default function App() {
 
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => {
-      const matchesSearch = (c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             c.company?.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = (
+        (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (c.company || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.jobTitle || "").toLowerCase().includes(searchQuery.toLowerCase())
+      );
       const matchesTag = selectedTag ? c.tags?.includes(selectedTag) : true;
-      return matchesSearch && matchesTag;
+      const matchesFilterTab = 
+        filterTab === "all" ? true :
+        filterTab === "favorites" ? !!c.isFavorite :
+        filterTab === "recent" ? true : true;
+
+      return matchesSearch && matchesTag && matchesFilterTab;
     }).sort((a,b) => b.createdAt - a.createdAt);
-  }, [contacts, searchQuery, selectedTag]);
+  }, [contacts, searchQuery, selectedTag, filterTab]);
 
   const generateVCard = (profile: UserProfile | null) => {
     if (!profile) return "";
@@ -1025,86 +1117,137 @@ export default function App() {
         {view === "contacts" && (
           <div className="p-4 space-y-4">
             
-            {contacts.length > 0 && (
-              <>
-                <div className="relative">
-                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50" />
-                  <input 
-                    type="text" 
-                    placeholder={t.searchPlaceholder} 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-black/10 backdrop-blur-md border border-white/20 rounded-2xl py-3 pl-11 pr-4 text-white placeholder:text-white/50 outline-none focus:bg-black/20 focus:border-white/40 transition shadow-inner"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white">
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-stone-900 drop-shadow-sm">
+                {lang === "vi" ? "Danh bạ" : "Contacts"}
+              </h2>
+              <button 
+                onClick={() => {
+                  setEditForm({});
+                  setTagInput("");
+                  setView("editor");
+                }}
+                className="p-2.5 rounded-full bg-[#C5A880] text-stone-900 hover:bg-[#B89768] transition shadow-sm"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
 
-                {allTags.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-                    <button 
-                      onClick={() => setSelectedTag(null)}
-                      className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm border ${!selectedTag ? 'bg-white text-blue-900 border-white' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
-                    >
-                      {t.all}
-                    </button>
-                    {allTags.map(tag => (
-                      <button 
-                        key={tag}
-                        onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                        className={`whitespace-nowrap flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm border ${tag === selectedTag ? 'bg-white text-blue-900 border-white' : 'bg-white/10 text-white border-white/20 hover:bg-white/20'}`}
-                      >
-                        <Tag size={12} className={tag === selectedTag ? "text-blue-600" : "text-white/70"} />
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
+            {/* SEARCH BAR */}
+            <div className="relative flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input 
+                  type="text" 
+                  placeholder={lang === "vi" ? "Tìm kiếm tên, công ty, chức vụ..." : "Search name, company..."} 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-white/80 backdrop-blur-md border border-stone-200 rounded-2xl py-3 pl-11 pr-10 text-stone-900 placeholder:text-stone-400 outline-none focus:bg-white focus:border-[#C5A880] transition shadow-sm text-sm"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                    <X size={16} />
+                  </button>
                 )}
-              </>
+              </div>
+              <button className="p-3 bg-white/80 border border-stone-200 rounded-2xl text-stone-600 hover:bg-white transition shadow-sm">
+                <SlidersHorizontal size={18} />
+              </button>
+            </div>
+
+            {/* FILTER PILLS */}
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <button 
+                onClick={() => setFilterTab("all")}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                  filterTab === "all" 
+                    ? 'bg-[#C5A880] text-stone-900 border border-[#B89768]' 
+                    : 'bg-white/70 text-stone-700 border border-stone-200 hover:bg-white'
+                }`}
+              >
+                {lang === "vi" ? "Tất cả" : "All"}
+              </button>
+              <button 
+                onClick={() => setFilterTab("recent")}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                  filterTab === "recent" 
+                    ? 'bg-[#C5A880] text-stone-900 border border-[#B89768]' 
+                    : 'bg-white/70 text-stone-700 border border-stone-200 hover:bg-white'
+                }`}
+              >
+                {lang === "vi" ? "Gần đây" : "Recent"}
+              </button>
+              <button 
+                onClick={() => setFilterTab("favorites")}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                  filterTab === "favorites" 
+                    ? 'bg-[#C5A880] text-stone-900 border border-[#B89768]' 
+                    : 'bg-white/70 text-stone-700 border border-stone-200 hover:bg-white'
+                }`}
+              >
+                {lang === "vi" ? "Yêu thích" : "Favorites"}
+              </button>
+            </div>
+
+            {/* TAGS FILTER */}
+            {allTags.length > 0 && (
+              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+                {allTags.map(tag => (
+                  <button 
+                    key={tag}
+                    onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                    className={`whitespace-nowrap flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all border ${tag === selectedTag ? 'bg-[#C5A880] text-stone-900 border-[#B89768]' : 'bg-white/50 text-stone-600 border-stone-200 hover:bg-white'}`}
+                  >
+                    <Tag size={10} className={tag === selectedTag ? "text-stone-900" : "text-stone-400"} />
+                    {tag}
+                  </button>
+                ))}
+              </div>
             )}
 
             {filteredContacts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-                <div className="w-16 h-16 bg-white/20 text-white rounded-full flex items-center justify-center mb-4 backdrop-blur-md border border-white/30 shadow-lg">
-                  {searchQuery || selectedTag ? <Search size={32} /> : <ScanLine size={32} />}
+                <div className="w-16 h-16 bg-[#E8E2D8] text-stone-700 rounded-full flex items-center justify-center mb-4 border border-[#D5CDBD] shadow-sm">
+                  {searchQuery || selectedTag ? <Search size={28} /> : <ScanLine size={28} />}
                 </div>
-                <h2 className="text-xl font-medium text-white mb-2 shadow-sm drop-shadow-md">
+                <h2 className="text-lg font-semibold text-stone-900 mb-1">
                   {searchQuery || selectedTag ? t.noMatches : t.noCards}
                 </h2>
-                <p className="text-white/80 drop-shadow-sm">
+                <p className="text-sm text-stone-500">
                   {searchQuery || selectedTag ? t.tryAdjusting : t.tapToScan}
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredContacts.map(contact => (
-                  <button
+                  <div
                     key={contact.id}
                     onClick={() => { setSelectedContact(contact); setView("detail"); }}
-                    className="w-full bg-white/10 backdrop-blur-lg p-4 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.15)] border border-white/20 flex items-center gap-4 hover:bg-white/20 active:scale-[0.98] transition-all text-left group"
+                    className="w-full bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-stone-200/70 flex items-center justify-between hover:bg-white active:scale-[0.99] transition-all text-left cursor-pointer group"
                   >
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white font-medium text-lg shrink-0 border border-white/30 group-hover:scale-105 transition-transform shadow-sm">
-                      {contact.name.charAt(0).toUpperCase() || <User size={20} />}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-12 h-12 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-[#D5CDBD] shadow-xs group-hover:scale-105 transition-transform">
+                        {getInitials(contact.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-stone-900 text-base truncate">{contact.name || t.unknown}</h3>
+                        <p className="text-xs text-stone-500 truncate mt-0.5">
+                          {contact.jobTitle}{contact.jobTitle && contact.company ? " · " : ""}{contact.company}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white truncate drop-shadow-sm">{contact.name || t.unknown}</h3>
-                      <p className="text-sm text-white/70 truncate drop-shadow-sm">
-                        {contact.jobTitle}{contact.jobTitle && contact.company ? " at " : ""}{contact.company}
-                      </p>
-                      {contact.tags && contact.tags.length > 0 && (
-                        <div className="flex gap-1.5 mt-2 overflow-hidden">
-                          {contact.tags.map(tag => (
-                            <span key={tag} className="text-[10px] font-medium px-2 py-0.5 bg-white/15 rounded-full border border-white/10 truncate max-w-[80px]">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(contact.id);
+                      }}
+                      className="p-2 text-[#C5A880] hover:scale-110 transition-transform ml-2 shrink-0"
+                    >
+                      <Star size={18} className={contact.isFavorite ? "fill-[#C5A880] text-[#C5A880]" : "text-stone-300"} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -1232,65 +1375,148 @@ export default function App() {
 
         {/* CONTACT DETAIL */}
         {view === "detail" && selectedContact && (
-          <div className="p-4">
-            <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] border border-white/20 flex flex-col items-center text-center mb-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-3xl mb-4 border border-white/30 shadow-lg relative z-10">
-                {selectedContact.name.charAt(0).toUpperCase() || <User size={32} />}
+          <div className="p-4 space-y-5">
+            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-stone-200 flex flex-col items-center text-center relative overflow-hidden">
+              <div className="w-20 h-20 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-2xl mb-3 border border-[#D5CDBD] shadow-sm">
+                {getInitials(selectedContact.name)}
               </div>
-              <h2 className="text-2xl font-bold text-white relative z-10 drop-shadow-md">{selectedContact.name || t.noName}</h2>
-              <p className="text-white/80 mt-1 relative z-10 drop-shadow-sm">{selectedContact.jobTitle}</p>
-              <p className="font-medium text-white/90 relative z-10 drop-shadow-sm">{selectedContact.company}</p>
+              <h2 className="text-xl font-bold text-stone-900 mb-0.5">{selectedContact.name || t.noName}</h2>
+              <p className="text-xs font-medium text-stone-600">{selectedContact.jobTitle}</p>
+              <p className="text-xs text-stone-500 mt-0.5">{selectedContact.company}</p>
               
-              {selectedContact.tags && selectedContact.tags.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-2 mt-4 relative z-10">
-                  {selectedContact.tags.map(tag => (
-                    <span key={tag} className="text-xs font-medium px-3 py-1 bg-white/15 rounded-full border border-white/20 shadow-sm flex items-center gap-1">
-                      <Tag size={10} className="text-white/70" />
-                      {tag}
-                    </span>
-                  ))}
+              {/* 4 CIRCULAR QUICK ACTIONS */}
+              <div className="grid grid-cols-4 gap-4 mt-6 w-full max-w-xs">
+                <a 
+                  href={`tel:${selectedContact.phone}`}
+                  className="flex flex-col items-center gap-1.5 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                    <Phone size={18} />
+                  </div>
+                  <span className="text-[11px] font-medium text-stone-600">Gọi</span>
+                </a>
+
+                <a 
+                  href={`mailto:${selectedContact.email}`}
+                  className="flex flex-col items-center gap-1.5 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                    <Mail size={18} />
+                  </div>
+                  <span className="text-[11px] font-medium text-stone-600">Email</span>
+                </a>
+
+                <a 
+                  href={`sms:${selectedContact.phone}`}
+                  className="flex flex-col items-center gap-1.5 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                    <MessageSquare size={18} />
+                  </div>
+                  <span className="text-[11px] font-medium text-stone-600">Nhắn tin</span>
+                </a>
+
+                <button 
+                  onClick={exportToCSV}
+                  className="flex flex-col items-center gap-1.5 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                    <Download size={18} />
+                  </div>
+                  <span className="text-[11px] font-medium text-stone-600">Lưu</span>
+                </button>
+              </div>
+            </div>
+
+            {/* DETAIL ROWS */}
+            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-4 shadow-sm border border-stone-200 space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FAF7F2] text-stone-600 flex items-center justify-center">
+                    <Phone size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-stone-900">{selectedContact.phone || "—"}</p>
+                    <p className="text-[11px] text-stone-400">Di động</p>
+                  </div>
                 </div>
-              )}
-            </div>
+                <button 
+                  onClick={() => {
+                    setEditForm(selectedContact);
+                    setTagInput(selectedContact.tags?.join(", ") || "");
+                    setView("editor");
+                  }}
+                  className="p-1 text-stone-400 hover:text-stone-600"
+                >
+                  <Edit2 size={14} />
+                </button>
+              </div>
 
-            <div className="space-y-3">
-              <DetailRow icon={<Phone />} value={selectedContact.phone} type="tel" />
-              <DetailRow icon={<Mail />} value={selectedContact.email} type="mailto" />
-              <DetailRow icon={<Globe />} value={selectedContact.website} type="url" />
-              <DetailRow icon={<MapPin />} value={selectedContact.address} />
-            </div>
-
-            {isDeleting ? (
-              <div className="mt-8 p-4 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-2xl">
-                <p className="text-center text-red-200 font-medium mb-4">{t.areYouSureDelete}</p>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsDeleting(false)}
-                    className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium py-3 rounded-xl transition-colors"
-                  >
-                    {t.cancel}
-                  </button>
-                  <button 
-                    onClick={() => {
-                      saveContacts(contacts.filter(c => c.id !== selectedContact.id));
-                      setIsDeleting(false);
-                      setView("contacts");
-                    }}
-                    className="flex-1 bg-red-500 text-white font-medium py-3 rounded-xl hover:bg-red-600 transition-colors"
-                  >
-                    {t.delete}
-                  </button>
+              <div className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FAF7F2] text-stone-600 flex items-center justify-center">
+                    <Mail size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-stone-900">{selectedContact.email || "—"}</p>
+                    <p className="text-[11px] text-stone-400">Email</p>
+                  </div>
                 </div>
               </div>
-            ) : (
-              <button 
-                onClick={() => setIsDeleting(true)}
-                className="w-full text-red-200 font-medium py-4 mt-8 bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-2xl hover:bg-red-500/30 active:scale-[0.98] shadow-sm transition-all"
-              >
-                {t.deleteContact}
-              </button>
-            )}
+
+              <div className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FAF7F2] text-stone-600 flex items-center justify-center">
+                    <Globe size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-stone-900">{selectedContact.website || "—"}</p>
+                    <p className="text-[11px] text-stone-400">Website</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#FAF7F2] text-stone-600 flex items-center justify-center">
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-stone-900">{selectedContact.address || "—"}</p>
+                    <p className="text-[11px] text-stone-400">Địa chỉ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* NOTES CARD */}
+            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-4 shadow-sm border border-stone-200">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Ghi chú</h4>
+                <button 
+                  onClick={() => {
+                    setEditForm(selectedContact);
+                    setTagInput(selectedContact.tags?.join(", ") || "");
+                    setView("editor");
+                  }}
+                  className="text-stone-400 hover:text-stone-600"
+                >
+                  <Edit2 size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-stone-800 leading-relaxed font-medium">
+                {selectedContact.notes || "Gặp tại sự kiện Tech Summit 2026"}
+              </p>
+            </div>
+
+            {/* SAVE TO CONTACTS BUTTON */}
+            <button 
+              onClick={() => exportToCSV()}
+              className="w-full bg-[#C5A880] hover:bg-[#B89768] active:scale-98 text-stone-900 font-semibold py-3.5 rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all text-sm"
+            >
+              <User size={18} />
+              {lang === "vi" ? "Lưu vào danh bạ" : "Save to contacts"}
+            </button>
           </div>
         )}
 
@@ -1417,135 +1643,101 @@ export default function App() {
 
         {/* SETTINGS */}
         {view === "settings" && (
-          <div className="p-4 space-y-6">
-            <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] border border-white/20 space-y-6">
-              
-              <div>
-                <h3 className="font-semibold mb-3 text-white/90 drop-shadow-sm">{t.language}</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => { setLang("en"); localStorage.setItem("lang", "en"); }}
-                    className={`py-3 px-4 rounded-xl border font-medium transition-all ${lang === "en" ? "bg-white text-blue-900 border-white shadow-md" : "bg-white/10 text-white border-white/20 hover:bg-white/20"}`}
-                  >
-                    {t.english}
-                  </button>
-                  <button 
-                    onClick={() => { setLang("vi"); localStorage.setItem("lang", "vi"); }}
-                    className={`py-3 px-4 rounded-xl border font-medium transition-all ${lang === "vi" ? "bg-white text-blue-900 border-white shadow-md" : "bg-white/10 text-white border-white/20 hover:bg-white/20"}`}
-                  >
-                    {t.vietnamese}
-                  </button>
-                </div>
+          <div className="p-4 space-y-4">
+            <h2 className="text-2xl font-bold text-stone-900 mb-2">
+              {lang === "vi" ? "Cài đặt" : "Settings"}
+            </h2>
+
+            {/* PROFILE CARD */}
+            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 shadow-sm border border-stone-200 flex items-center gap-4">
+              <div className="w-14 h-14 bg-[#E8E2D8] text-[#5C5243] rounded-full flex items-center justify-center font-bold text-lg border border-[#D5CDBD]">
+                {getInitials(userProfile?.name || "Nguyễn Thị Mai Anh")}
               </div>
-
-              <div>
-                <h3 className="font-semibold mb-3 text-white/90 drop-shadow-sm">{t.theme}</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(THEMES).map(([key, theme]) => (
-                    <button 
-                      key={key}
-                      onClick={() => { setThemeKey(key as keyof typeof THEMES); localStorage.setItem("theme", key); }}
-                      className={`relative overflow-hidden py-4 px-4 rounded-xl border text-sm font-medium transition-all ${themeKey === key ? "border-white shadow-md scale-[1.02]" : "border-white/20 hover:border-white/50 opacity-80"}`}
-                    >
-                      <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundColor: theme.background, backgroundImage: theme.backgroundImage, backgroundSize: "cover" }}></div>
-                      <span className="relative z-10 text-white drop-shadow-md">{theme.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-stone-900 text-base truncate">
+                  {userProfile?.name || "Nguyễn Thị Mai Anh"}
+                </h3>
+                <p className="text-xs text-stone-500 truncate mt-0.5">
+                  {userProfile?.email || "mai.anh@company.com"}
+                </p>
               </div>
-
-              <div className="pt-4 border-t border-white/20">
-                <div className="w-full flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 text-left">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-blue-500/20 p-2 rounded-lg text-blue-200">
-                      <Cloud size={20} />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white">{t.cloudSync}</h4>
-                      <p className="text-xs text-white/60 mt-0.5">
-                        {lang === "vi" ? "Tự động sao lưu dữ liệu" : "Automatic cloud sync active"}
-                      </p>
-                    </div>
-                  </div>
-                  {isLoggedIn ? (
-                    syncing ? (
-                      <Loader2 size={16} className="animate-spin text-blue-400" />
-                    ) : (
-                      <span className="text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30 px-2.5 py-1 rounded-full">
-                        {lang === "vi" ? "Tự động" : "Auto"}
-                      </span>
-                    )
-                  ) : (
-                    <button 
-                      onClick={() => {
-                        setLoginPromptReason("feature");
-                        setShowLoginPrompt(true);
-                      }}
-                      className="text-xs font-medium bg-white/10 hover:bg-white/20 text-white/80 px-2.5 py-1 rounded-full transition-colors"
-                    >
-                      {lang === "vi" ? "Bật" : "Enable"}
-                    </button>
-                  )}
-                </div>
-
-                <button 
-                  onClick={() => {
-                    if (!isLoggedIn) {
-                      setLoginPromptReason("feature");
-                      setShowLoginPrompt(true);
-                    } else {
-                      setShowExportMenu(true);
-                    }
-                  }}
-                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors text-left mt-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-purple-500/20 p-2 rounded-lg text-purple-200">
-                      <Download size={20} />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white">{t.exportData}</h4>
-                      <p className="text-xs text-white/60 mt-0.5">{t.premiumFeature}</p>
-                    </div>
-                  </div>
-                </button>
-
-                {gdriveFileUrl && (
-                  <a 
-                    href={gdriveFileUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-between p-4 bg-green-500/10 hover:bg-green-500/20 text-green-200 rounded-xl border border-green-500/20 transition-colors text-left mt-3 font-medium animate-in fade-in duration-300"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-green-500/20 p-2 rounded-lg text-green-400">
-                        <Cloud size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-green-300">
-                          {lang === "vi" ? "Mở Google Sheets" : "Open Google Sheets"}
-                        </h4>
-                        <p className="text-xs text-green-400/70 mt-0.5">
-                          {lang === "vi" ? "Xem file đã xuất trên Drive" : "View exported file in Drive"}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronLeft size={20} className="rotate-180 text-green-400" />
-                  </a>
-                )}
-                
-                {isLoggedIn && (
-                  <button 
-                    onClick={handleSignOut}
-                    className="w-full flex items-center justify-center gap-2 p-4 bg-red-500/10 hover:bg-red-500/20 text-red-200 rounded-xl border border-red-500/20 transition-colors mt-6"
-                  >
-                    <LogOut size={20} />
-                    <span className="font-medium">Sign Out</span>
-                  </button>
-                )}
-              </div>
-
             </div>
+
+            {/* SETTINGS OPTIONS LIST */}
+            <div className="bg-white/80 backdrop-blur-md rounded-3xl p-2 shadow-sm border border-stone-200 divide-y divide-stone-100">
+              <button 
+                onClick={() => {
+                  if (!isLoggedIn) setShowLoginPrompt(true);
+                }}
+                className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
+              >
+                <span className="text-sm font-medium text-stone-800">
+                  {lang === "vi" ? "Tài khoản & đồng bộ" : "Account & Sync"}
+                </span>
+                <ChevronRight size={18} className="text-stone-400" />
+              </button>
+
+              <button 
+                onClick={() => {
+                  const newLang = lang === "vi" ? "en" : "vi";
+                  setLang(newLang);
+                  localStorage.setItem("lang", newLang);
+                }}
+                className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
+              >
+                <span className="text-sm font-medium text-stone-800">
+                  {lang === "vi" ? "Ngôn ngữ" : "Language"}
+                </span>
+                <div className="flex items-center gap-2 text-xs text-stone-500">
+                  <span>{lang === "vi" ? "Tiếng Việt" : "English"}</span>
+                  <ChevronRight size={18} className="text-stone-400" />
+                </div>
+              </button>
+
+              <button 
+                onClick={() => {
+                  setShowExportMenu(true);
+                }}
+                className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
+              >
+                <span className="text-sm font-medium text-stone-800">
+                  {lang === "vi" ? "Xuất dữ liệu" : "Export Data"}
+                </span>
+                <ChevronRight size={18} className="text-stone-400" />
+              </button>
+
+              <button 
+                onClick={() => syncContacts(true)}
+                className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
+              >
+                <span className="text-sm font-medium text-stone-800">
+                  {lang === "vi" ? "Sao lưu dữ liệu" : "Data Backup"}
+                </span>
+                <ChevronRight size={18} className="text-stone-400" />
+              </button>
+
+              <button className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left">
+                <span className="text-sm font-medium text-stone-800">
+                  {lang === "vi" ? "Hỗ trợ & phản hồi" : "Support & Feedback"}
+                </span>
+                <ChevronRight size={18} className="text-stone-400" />
+              </button>
+
+              <button className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left">
+                <span className="text-sm font-medium text-stone-800">
+                  {lang === "vi" ? "Giới thiệu ứng dụng" : "About App"}
+                </span>
+                <ChevronRight size={18} className="text-stone-400" />
+              </button>
+            </div>
+
+            {/* SIGN OUT BUTTON */}
+            <button 
+              onClick={handleSignOut}
+              className="w-full bg-[#FAF7F2] hover:bg-[#EAE5DD] text-stone-700 font-medium py-3.5 rounded-2xl border border-stone-200 transition-colors text-sm text-center shadow-xs"
+            >
+              {lang === "vi" ? "Đăng xuất" : "Sign Out"}
+            </button>
           </div>
         )}
 
@@ -1666,24 +1858,24 @@ export default function App() {
       {showExitConfirmModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowExitConfirmModal(false)} />
-          <div className="relative w-full max-w-sm bg-[#1a1a2e] border border-white/10 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center mx-auto mb-4">
+          <div className="relative w-full max-w-sm bg-[#1C1A17] border border-[#3A352E] backdrop-blur-2xl rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200 text-white">
+            <div className="w-12 h-12 rounded-full bg-[#C5A880]/20 text-[#C5A880] border border-[#C5A880]/30 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle size={24} />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">
+            <h3 className="text-lg font-bold text-white mb-1.5">
               {lang === "vi" ? "Bạn có muốn quay lại?" : "Discard Changes?"}
             </h3>
             <p className="text-xs text-white/70 mb-6 leading-relaxed">
               {lang === "vi" 
-                ? "Thông tin danh thiếp đang kiểm tra/chỉnh sửa chưa được lưu. Bạn có chắc chắn muốn thoát không?" 
-                : "Unsaved contact details will be lost. Are you sure you want to go back?"}
+                ? "Nếu quay lại sẽ mất thông tin mới quét" 
+                : "Unsaved scanned details will be lost"}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowExitConfirmModal(false)}
-                className="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-medium border border-white/10 transition-colors"
+                className="flex-1 py-3.5 px-4 bg-[#C5A880] hover:bg-[#B89768] text-[#1C1A17] font-semibold rounded-xl text-sm transition-colors shadow-md"
               >
-                {lang === "vi" ? "Ở lại sửa" : "Stay"}
+                {lang === "vi" ? "Tiếp tục chỉnh sửa" : "Continue editing"}
               </button>
               <button
                 onClick={() => {
@@ -1695,7 +1887,7 @@ export default function App() {
                     setView("contacts");
                   }
                 }}
-                className="flex-1 py-3 px-4 bg-red-500/80 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors shadow-lg"
+                className="flex-1 py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white/90 rounded-xl text-sm font-medium border border-white/15 transition-colors"
               >
                 {lang === "vi" ? "Quay lại" : "Discard"}
               </button>
@@ -1705,34 +1897,34 @@ export default function App() {
       )}
 
       {/* BOTTOM NAV */}
-      {["contacts", "profile"].includes(view) && (
-        <div className="bottom-nav-fixed left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl px-6 py-2 flex justify-around items-center max-w-sm mx-auto shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] z-50">
+      {["contacts", "settings", "profile"].includes(view) && (
+        <div className="bottom-nav-fixed left-6 right-6 bg-white/90 backdrop-blur-md border border-stone-200/80 rounded-full px-6 py-2.5 flex justify-around items-center max-w-sm mx-auto shadow-lg z-50">
           <button 
             onClick={() => setView("contacts")}
-            className={`flex flex-col items-center p-1.5 transition-all duration-300 ${view === "contacts" ? "text-white scale-105 drop-shadow-md font-semibold" : "text-white/50 hover:text-white/80"}`}
+            className={`flex flex-col items-center p-1.5 transition-all duration-300 ${view === "contacts" ? "text-stone-900 scale-105 font-bold" : "text-stone-400 hover:text-stone-600"}`}
           >
-            <Users size={22} className="mb-1" />
-            <span className="text-[10px] font-medium tracking-wide">{t.contacts}</span>
+            <Users size={20} className="mb-1" />
+            <span className="text-[10px] font-medium tracking-wide">{lang === "vi" ? "Danh bạ" : "Contacts"}</span>
           </button>
           
           <button 
             onClick={() => setShowScanMenu(true)}
-            className="flex flex-col items-center p-1.5 transition-all duration-300 text-white hover:scale-105 active:scale-95 group"
+            className="flex flex-col items-center p-1.5 transition-all duration-300 text-stone-900 hover:scale-105 active:scale-95 group"
           >
-            <div className="w-10 h-10 rounded-full bg-blue-500/30 border border-blue-400/40 flex items-center justify-center text-blue-200 group-hover:bg-blue-500/40 shadow-sm mb-1">
-              <ScanLine size={20} />
+            <div className="w-9 h-9 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] group-hover:bg-[#C5A880] group-hover:text-stone-900 shadow-xs mb-0.5">
+              <ScanLine size={18} />
             </div>
-            <span className="text-[10px] font-medium tracking-wide text-white/90">
+            <span className="text-[10px] font-medium tracking-wide text-stone-700">
               {lang === "vi" ? "Quét" : "Scan"}
             </span>
           </button>
           
           <button 
-            onClick={() => setView("profile")}
-            className={`flex flex-col items-center p-1.5 transition-all duration-300 ${view === "profile" ? "text-white scale-105 drop-shadow-md font-semibold" : "text-white/50 hover:text-white/80"}`}
+            onClick={() => setView("settings")}
+            className={`flex flex-col items-center p-1.5 transition-all duration-300 ${view === "settings" ? "text-stone-900 scale-105 font-bold" : "text-stone-400 hover:text-stone-600"}`}
           >
-            <QrCode size={22} className="mb-1" />
-            <span className="text-[10px] font-medium tracking-wide">{t.myCard}</span>
+            <Settings size={20} className="mb-1" />
+            <span className="text-[10px] font-medium tracking-wide">{lang === "vi" ? "Cài đặt" : "Settings"}</span>
           </button>
         </div>
       )}

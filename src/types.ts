@@ -8,6 +8,8 @@ export interface Contact {
   website: string;
   address: string;
   tags?: string[];
+  notes?: string;
+  isFavorite?: boolean;
   createdAt: number;
 }
 
