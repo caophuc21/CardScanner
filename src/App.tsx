@@ -1050,64 +1050,47 @@ export default function App() {
     <div className="min-h-screen flex flex-col font-sans text-stone-900 bg-white max-w-md mx-auto relative pb-24">
       
       {/* HEADER */}
-      <header className="bg-white border border-stone-200 px-4 py-3.5 flex items-center justify-between sticky top-4 z-20 shadow-sm rounded-3xl mx-4 mt-4 mb-2">
-        {["editor", "detail", "profile-editor", "settings"].includes(view) ? (
-          <button 
-            onClick={() => {
-              if (view === "profile-editor") setView("profile");
-              else if (view === "editor") setShowExitConfirmModal(true);
-              else setView("contacts");
-            }} 
-            className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
-          >
-            <ChevronLeft size={24} />
-          </button>
-        ) : (
-          <button 
-            onClick={() => setView("settings")}
-            className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
-          >
-            <Settings size={24} />
-          </button>
-        )}
-        
-        <h1 className="text-lg font-bold text-stone-900 tracking-tight">
-          {view === "contacts" && (lang === "vi" ? "Danh bạ" : t.myCards)}
-          {view === "scanner" && t.scanning}
-          {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
-          {view === "detail" && t.contact}
-          {view === "profile" && t.myProfile}
-          {view === "profile-editor" && t.editProfile}
-          {view === "settings" && t.settings}
-        </h1>
-        
-        <div className="w-10 flex justify-end">
-          {view === "contacts" && (
+      {!["contacts", "settings"].includes(view) && (
+        <header className="bg-white border border-stone-200 px-4 py-3.5 flex items-center justify-between sticky top-4 z-20 shadow-sm rounded-3xl mx-4 mt-4 mb-2">
+          {["editor", "detail", "profile-editor"].includes(view) ? (
             <button 
               onClick={() => {
-                setEditForm({});
-                setTagInput("");
-                setView("editor");
-              }}
-              className="p-2 -mr-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
+                if (view === "profile-editor") setView("profile");
+                else if (view === "editor") setShowExitConfirmModal(true);
+                else setView("contacts");
+              }} 
+              className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
             >
-              <Plus size={24} />
+              <ChevronLeft size={24} />
             </button>
+          ) : (
+            <div className="w-10" />
           )}
-          {view === "detail" && (
-            <button 
-              onClick={() => {
-                setEditForm(selectedContact!);
-                setTagInput(selectedContact!.tags?.join(", ") || "");
-                setView("editor");
-              }}
-              className="p-2 -mr-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
-            >
-              <Edit2 size={20} />
-            </button>
-          )}
-        </div>
-      </header>
+          
+          <h1 className="text-lg font-bold text-stone-900 tracking-tight">
+            {view === "scanner" && t.scanning}
+            {view === "editor" && (editForm.id ? t.editContact : t.reviewDetails)}
+            {view === "detail" && t.contact}
+            {view === "profile" && t.myProfile}
+            {view === "profile-editor" && t.editProfile}
+          </h1>
+          
+          <div className="w-10 flex justify-end">
+            {view === "detail" && (
+              <button 
+                onClick={() => {
+                  setEditForm(selectedContact!);
+                  setTagInput(selectedContact!.tags?.join(", ") || "");
+                  setView("editor");
+                }}
+                className="p-2 -mr-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
+              >
+                <Edit2 size={20} />
+              </button>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
@@ -1637,9 +1620,18 @@ export default function App() {
         {/* SETTINGS */}
         {view === "settings" && (
           <div className="p-4 space-y-4">
-            <h2 className="text-2xl font-bold text-stone-900 mb-2">
-              {lang === "vi" ? "Cài đặt" : "Settings"}
-            </h2>
+            <div className="flex items-center gap-2 mb-2">
+              <button 
+                onClick={() => setView("contacts")}
+                className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-900 transition"
+                aria-label="Back"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <h2 className="text-2xl font-bold text-stone-900">
+                {lang === "vi" ? "Cài đặt" : "Settings"}
+              </h2>
+            </div>
 
             {/* PROFILE CARD */}
             <div className="bg-white/80 backdrop-blur-md rounded-3xl p-5 shadow-sm border border-stone-200 flex items-center gap-4">
@@ -1699,16 +1691,6 @@ export default function App() {
               >
                 <span className="text-sm font-semibold text-stone-900">
                   {lang === "vi" ? "Xuất dữ liệu" : "Export Data"}
-                </span>
-                <ChevronRight size={18} className="text-stone-400" />
-              </button>
-
-              <button 
-                onClick={() => syncContacts(true)}
-                className="w-full p-4 flex items-center justify-between hover:bg-stone-50 transition-colors text-left"
-              >
-                <span className="text-sm font-semibold text-stone-900">
-                  {lang === "vi" ? "Sao lưu dữ liệu" : "Data Backup"}
                 </span>
                 <ChevronRight size={18} className="text-stone-400" />
               </button>
