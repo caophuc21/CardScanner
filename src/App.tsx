@@ -118,7 +118,7 @@ const TRANSLATIONS = {
     continueWithEmail: "Continue with Email",
     notNow: "Not Now",
     cloudSync: "Cloud Sync & Backup",
-    exportData: "Export Data (CSV/vCard)",
+    exportData: "Export Data (CSV/Google Drive)",
     premiumFeature: "Premium Feature"
   },
   vi: {
@@ -171,7 +171,7 @@ const TRANSLATIONS = {
     continueWithEmail: "Tiếp tục với Email",
     notNow: "Để sau",
     cloudSync: "Đồng bộ & Sao lưu đám mây",
-    exportData: "Xuất dữ liệu (CSV/vCard)",
+    exportData: "Xuất dữ liệu (CSV/Google Drive)",
     premiumFeature: "Tính năng Premium"
   }
 };
@@ -374,17 +374,9 @@ export default function App() {
     }
   };
 
-  const exportToCSV = () => {
-    if (contacts.length === 0) {
-      alert(lang === "vi" ? "Không có danh bạ để xuất." : "No contacts to export.");
-      return;
-    }
-    
-    // Define CSV headers
+  const generateCSVContent = (contactsList: Contact[]) => {
     const headers = ["Name", "Job Title", "Company", "Phone", "Email", "Website", "Address", "Tags", "Created At"];
-    
-    // Format rows
-    const rows = contacts.map(c => [
+    const rows = contactsList.map(c => [
       c.name || "",
       c.jobTitle || "",
       c.company || "",
@@ -395,20 +387,24 @@ export default function App() {
       c.tags ? c.tags.join("; ") : "",
       new Date(c.createdAt).toLocaleString()
     ]);
-    
-    // Helper to escape CSV values
     const escapeCSV = (val: string) => {
       const escaped = String(val).replace(/"/g, '""');
       return `"${escaped}"`;
     };
-    
-    const csvContent = [
+    return [
       headers.join(","),
       ...rows.map(row => row.map(val => escapeCSV(val)).join(","))
     ].join("\n");
+  };
+
+  const exportToCSV = () => {
+    if (contacts.length === 0) {
+      alert(lang === "vi" ? "Không có danh bạ để xuất." : "No contacts to export.");
+      return;
+    }
     
-    // Create Blob and trigger download
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: "text/csv;charset=utf-8;" }); // include UTF-8 BOM
+    const csvContent = generateCSVContent(contacts);
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
@@ -417,6 +413,7 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const getGoogleDriveToken = async (): Promise<string> => {
@@ -433,27 +430,13 @@ export default function App() {
     const provider = new GoogleAuthProvider();
     provider.addScope("https://www.googleapis.com/auth/drive.file");
 
-    let result;
-    if (auth.currentUser) {
-      // Re-authenticate or link to get the token with Google Drive scope
-      result = await linkWithPopup(auth.currentUser, provider).catch(async (err) => {
-        // If already linked, linkWithPopup might fail, so we fall back to signInWithPopup
-        if (err.code === "auth/credential-already-in-use" || err.code === "auth/provider-already-linked") {
-          return await signInWithPopup(auth, provider);
-        }
-        throw err;
-      });
-    } else {
-      result = await signInWithPopup(auth, provider);
-    }
-
+    const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential?.accessToken;
     if (!token) {
       throw new Error(lang === "vi" ? "Không lấy được access token từ Google." : "Could not retrieve Google access token.");
     }
 
-    // Cache for 55 mins
     sessionStorage.setItem("google_drive_token", token);
     sessionStorage.setItem("google_drive_token_expiry", String(Date.now() + 55 * 60 * 1000));
 
@@ -471,33 +454,11 @@ export default function App() {
 
     try {
       const token = await getGoogleDriveToken();
+      const csvContent = generateCSVContent(contacts);
 
-      // 1. Generate CSV content
-      const headers = ["Name", "Job Title", "Company", "Phone", "Email", "Website", "Address", "Tags", "Created At"];
-      const rows = contacts.map(c => [
-        c.name || "",
-        c.jobTitle || "",
-        c.company || "",
-        c.phone || "",
-        c.email || "",
-        c.website || "",
-        c.address || "",
-        c.tags ? c.tags.join("; ") : "",
-        new Date(c.createdAt).toLocaleString()
-      ]);
-      const escapeCSV = (val: string) => {
-        const escaped = String(val).replace(/"/g, '""');
-        return `"${escaped}"`;
-      };
-      const csvContent = [
-        headers.join(","),
-        ...rows.map(row => row.map(val => escapeCSV(val)).join(","))
-      ].join("\n");
-
-      // 2. Upload to Google Drive
       const metadata = {
         name: `CardScanner_Contacts_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}`,
-        mimeType: "application/vnd.google-apps.spreadsheet", // Convert to Google Sheets
+        mimeType: "application/vnd.google-apps.spreadsheet",
       };
 
       const boundary = "foo_bar_boundary";
@@ -711,9 +672,16 @@ export default function App() {
     setAuthLoading(true);
     if (isFirebaseConfigured && auth) {
       const provider = new GoogleAuthProvider();
+      provider.addScope("https://www.googleapis.com/auth/drive.file");
       try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
+
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential?.accessToken) {
+          sessionStorage.setItem("google_drive_token", credential.accessToken);
+          sessionStorage.setItem("google_drive_token_expiry", String(Date.now() + 55 * 60 * 1000));
+        }
         
         // Update user profile local storage
         const profile: UserProfile = {
@@ -1440,35 +1408,38 @@ export default function App() {
               </div>
 
               <div className="pt-4 border-t border-white/20">
-                <button 
-                  onClick={() => {
-                    if (!isLoggedIn) {
-                      setLoginPromptReason("feature");
-                      setShowLoginPrompt(true);
-                    } else {
-                      syncContacts(true);
-                    }
-                  }}
-                  disabled={syncing}
-                  className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors text-left disabled:opacity-55"
-                >
+                <div className="w-full flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 text-left">
                   <div className="flex items-center gap-3">
                     <div className="bg-blue-500/20 p-2 rounded-lg text-blue-200">
                       <Cloud size={20} />
                     </div>
                     <div>
                       <h4 className="font-medium text-white">{t.cloudSync}</h4>
-                      <p className="text-xs text-white/60 mt-0.5">{t.premiumFeature}</p>
+                      <p className="text-xs text-white/60 mt-0.5">
+                        {lang === "vi" ? "Tự động sao lưu dữ liệu" : "Automatic cloud sync active"}
+                      </p>
                     </div>
                   </div>
-                  {isLoggedIn && (
+                  {isLoggedIn ? (
                     syncing ? (
-                      <Loader2 size={16} className="animate-spin text-white/50" />
+                      <Loader2 size={16} className="animate-spin text-blue-400" />
                     ) : (
-                      <span className="text-xs font-medium bg-green-500/20 text-green-200 px-2 py-1 rounded-full">Active</span>
+                      <span className="text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30 px-2.5 py-1 rounded-full">
+                        {lang === "vi" ? "Tự động" : "Auto"}
+                      </span>
                     )
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        setLoginPromptReason("feature");
+                        setShowLoginPrompt(true);
+                      }}
+                      className="text-xs font-medium bg-white/10 hover:bg-white/20 text-white/80 px-2.5 py-1 rounded-full transition-colors"
+                    >
+                      {lang === "vi" ? "Bật" : "Enable"}
+                    </button>
                   )}
-                </button>
+                </div>
 
                 <button 
                   onClick={() => {
