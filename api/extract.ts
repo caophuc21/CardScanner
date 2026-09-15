@@ -47,7 +47,7 @@ export default async function handler(req: any, res: any) {
           const response = await ai.models.generateContent({
             model: model,
             contents: [
-              { text: "Extract the details from this business card. Return a JSON object with: name, jobTitle, company, phone, email, website, address. If any field is not found or unclear, leave it as an empty string." },
+              { text: "Extract the details from this business card. Return a JSON object with: name, jobTitle, company, phone, email, website, address, category. For category, infer the industry sector in Vietnamese if possible (e.g., 'Ngân hàng', 'Bảo hiểm', 'Bất động sản', 'Công nghệ', 'Viễn thông', 'Tài chính', 'Bán lẻ', 'Y tế', 'Giáo dục', 'Khác'). If any field is not found or unclear, leave it as an empty string." },
               { inlineData: { data: base64Data, mimeType } }
             ],
             config: {
@@ -62,8 +62,9 @@ export default async function handler(req: any, res: any) {
                   email: { type: Type.STRING },
                   website: { type: Type.STRING },
                   address: { type: Type.STRING },
+                  category: { type: Type.STRING },
                 },
-                required: ["name", "jobTitle", "company", "phone", "email", "website", "address"]
+                required: ["name", "jobTitle", "company", "phone", "email", "website", "address", "category"]
               }
             }
           });
@@ -100,7 +101,8 @@ export default async function handler(req: any, res: any) {
     }
 
     if (successText) {
-      res.status(200).json({ data: JSON.parse(successText) });
+      const data = JSON.parse(successText);
+      res.status(200).json({ data });
     } else {
       console.error("Extraction failed: Tried all models but failed");
       throw lastError || new Error("Failed to extract card details");

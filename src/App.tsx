@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight, CreditCard, Trash2 } from "lucide-react";
 import { Contact, UserProfile } from "./types";
+import { normalizeAndPrioritizePhone } from "./utils/phone";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
 import { 
@@ -48,6 +49,19 @@ const THEMES = {
   }
 };
 
+const PRESET_CATEGORIES = [
+  "Ngân hàng",
+  "Bảo hiểm",
+  "Bất động sản",
+  "Công nghệ",
+  "Viễn thông",
+  "Tài chính",
+  "Bán lẻ",
+  "Y tế",
+  "Giáo dục",
+  "Khác"
+];
+
 const TRANSLATIONS = {
   en: {
     myCards: "My Cards",
@@ -58,7 +72,7 @@ const TRANSLATIONS = {
     myProfile: "My Profile",
     editProfile: "Edit Profile",
     settings: "Settings",
-    searchPlaceholder: "Search by name or company...",
+    searchPlaceholder: "Search by name, company, category...",
     all: "All",
     noMatches: "No matches found",
     noCards: "No cards yet",
@@ -71,6 +85,10 @@ const TRANSLATIONS = {
     email: "Email",
     website: "Website",
     address: "Address",
+    category: "Sector / Industry",
+    selectCategory: "Select Sector",
+    allCategories: "All Sectors",
+    categoryFilter: "Sector / Industry",
     tags: "Tags (comma separated)",
     saveContact: "Save Contact",
     noName: "No Name",
@@ -111,7 +129,7 @@ const TRANSLATIONS = {
     myProfile: "Hồ sơ của tôi",
     editProfile: "Sửa hồ sơ",
     settings: "Cài đặt",
-    searchPlaceholder: "Tìm theo tên hoặc công ty...",
+    searchPlaceholder: "Tìm theo tên, công ty, lĩnh vực...",
     all: "Tất cả",
     noMatches: "Không tìm thấy kết quả",
     noCards: "Chưa có danh thiếp",
@@ -124,6 +142,10 @@ const TRANSLATIONS = {
     email: "Email",
     website: "Trang web",
     address: "Địa chỉ",
+    category: "Lĩnh vực / Ngành nghề",
+    selectCategory: "Chọn Lĩnh vực",
+    allCategories: "Tất cả Lĩnh vực",
+    categoryFilter: "Lĩnh vực / Phân loại",
     tags: "Thẻ (cách nhau bằng dấu phẩy)",
     saveContact: "Lưu Liên Hệ",
     noName: "Không có tên",
@@ -264,11 +286,12 @@ export default function App() {
       id: "c1",
       name: "Nguyễn Thị Mai Anh",
       jobTitle: "Business Development Manager",
-      company: "ABC Company",
-      phone: "+84 912 345 678",
-      email: "mai.anh@company.com",
-      website: "www.company.com",
-      address: "Tầng 12, Tòa nhà ABC, Quận 1, TP. HCM",
+      company: "Vietcombank",
+      phone: "0912 345 678",
+      email: "mai.anh@vietcombank.com.vn",
+      website: "www.vietcombank.com.vn",
+      address: "Tầng 12, Tòa nhà VCB, Quận 1, TP. HCM",
+      category: "Ngân hàng",
       tags: ["Đối tác", "VIP"],
       notes: "Gặp tại sự kiện Tech Summit 2026",
       isFavorite: true,
@@ -278,11 +301,12 @@ export default function App() {
       id: "c2",
       name: "Trần Minh Đức",
       jobTitle: "CEO",
-      company: "Global Group",
-      phone: "+84 903 123 456",
-      email: "duc.tran@globalgroup.com",
-      website: "www.globalgroup.com",
+      company: "Manulife Việt Nam",
+      phone: "0903 123 456",
+      email: "duc.tran@manulife.com.vn",
+      website: "www.manulife.com.vn",
       address: "Quận 3, TP. HCM",
+      category: "Bảo hiểm",
       tags: ["Khách hàng"],
       isFavorite: false,
       createdAt: Date.now() - 1000 * 60 * 60 * 2
@@ -291,11 +315,12 @@ export default function App() {
       id: "c3",
       name: "Lê Hoàng Yến",
       jobTitle: "Marketing Director",
-      company: "Sunrise Media",
-      phone: "+84 988 234 567",
-      email: "yen.le@sunrisemedia.vn",
-      website: "www.sunrisemedia.vn",
+      company: "Techcombank",
+      phone: "0988 234 567",
+      email: "yen.le@techcombank.com.vn",
+      website: "www.techcombank.com.vn",
       address: "Quận 1, TP. HCM",
+      category: "Ngân hàng",
       tags: ["Media", "Đối tác"],
       isFavorite: false,
       createdAt: Date.now() - 1000 * 60 * 60 * 5
@@ -305,10 +330,11 @@ export default function App() {
       name: "Phạm Quốc Hùng",
       jobTitle: "Sales Manager",
       company: "Viettel Solutions",
-      phone: "+84 918 345 678",
+      phone: "0918 345 678",
       email: "hung.pham@viettel.vn",
       website: "www.viettelsolutions.vn",
       address: "Cầu Giấy, Hà Nội",
+      category: "Viễn thông",
       tags: ["Viễn thông"],
       isFavorite: false,
       createdAt: Date.now() - 1000 * 60 * 60 * 24
@@ -317,11 +343,12 @@ export default function App() {
       id: "c5",
       name: "Đỗ Thị Thanh",
       jobTitle: "HR Manager",
-      company: "NextGen",
-      phone: "+84 977 456 789",
+      company: "NextGen Tech",
+      phone: "0977 456 789",
       email: "thanh.do@nextgen.io",
       website: "www.nextgen.io",
       address: "Nam Từ Liêm, Hà Nội",
+      category: "Công nghệ",
       tags: ["Tuyển dụng"],
       isFavorite: false,
       createdAt: Date.now() - 1000 * 60 * 60 * 30
@@ -330,11 +357,12 @@ export default function App() {
       id: "c6",
       name: "Nguyễn Văn Long",
       jobTitle: "Founder & CEO",
-      company: "GreenTech",
-      phone: "+84 966 567 890",
-      email: "long.nguyen@greentech.vn",
-      website: "www.greentech.vn",
+      company: "Vinhomes Real Estate",
+      phone: "0966 567 890",
+      email: "long.nguyen@vinhomes.vn",
+      website: "www.vinhomes.vn",
       address: "Bình Thạnh, TP. HCM",
+      category: "Bất động sản",
       tags: ["Startup"],
       isFavorite: false,
       createdAt: Date.now() - 1000 * 60 * 60 * 48
@@ -447,7 +475,7 @@ export default function App() {
   };
 
   const generateCSVContent = (contactsList: Contact[]) => {
-    const headers = ["Name", "Job Title", "Company", "Phone", "Email", "Website", "Address", "Tags", "Created At"];
+    const headers = ["Name", "Job Title", "Company", "Phone", "Email", "Website", "Address", "Category", "Tags", "Created At"];
     const rows = contactsList.map(c => [
       c.name || "",
       c.jobTitle || "",
@@ -456,6 +484,7 @@ export default function App() {
       c.email || "",
       c.website || "",
       c.address || "",
+      c.category || "",
       c.tags ? c.tags.join("; ") : "",
       new Date(c.createdAt).toLocaleString()
     ]);
@@ -909,6 +938,7 @@ export default function App() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [filterTab, setFilterTab] = useState<"all" | "recent" | "favorites">("all");
 
@@ -1025,7 +1055,11 @@ export default function App() {
           data = parseTextWithRegex(result.data.text);
         }
 
-        setEditForm(data);
+        if (data && data.phone) {
+          data.phone = normalizeAndPrioritizePhone(data.phone);
+        }
+
+        setEditForm(data || {});
         setTagInput("");
         setView("editor");
         
@@ -1048,15 +1082,17 @@ export default function App() {
 
   const saveNewContact = () => {
     const tags = tagInput.split(',').map(t => t.trim()).filter(Boolean);
+    const normalizedPhone = normalizeAndPrioritizePhone(editForm.phone || "");
     const newContact: Contact = {
       id: editForm.id || generateUUID(),
       name: editForm.name || "",
       jobTitle: editForm.jobTitle || "",
       company: editForm.company || "",
-      phone: editForm.phone || "",
+      phone: normalizedPhone,
       email: editForm.email || "",
       website: editForm.website || "",
       address: editForm.address || "",
+      category: editForm.category || "",
       notes: editForm.notes || "",
       avatarUrl: editForm.avatarUrl || "",
       tags: tags,
@@ -1080,11 +1116,24 @@ export default function App() {
     }
   };
 
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    PRESET_CATEGORIES.forEach(cat => set.add(cat));
+    contacts.forEach(c => {
+      if (c.category?.trim()) set.add(c.category.trim());
+    });
+    return Array.from(set);
+  }, [contacts]);
+
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    contacts.forEach(c => c.tags?.forEach(t => tags.add(t)));
+    contacts.forEach(c => {
+      if (!selectedCategory || c.category === selectedCategory) {
+        c.tags?.forEach(t => tags.add(t));
+      }
+    });
     return Array.from(tags).sort();
-  }, [contacts]);
+  }, [contacts, selectedCategory]);
 
   const currentTagQuery = useMemo(() => {
     if (!tagInput) return "";
@@ -1118,17 +1167,19 @@ export default function App() {
       const matchesSearch = (
         (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
         (c.company || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.jobTitle || "").toLowerCase().includes(searchQuery.toLowerCase())
+        (c.jobTitle || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.category || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
+      const matchesCategory = selectedCategory ? c.category === selectedCategory : true;
       const matchesTag = selectedTag ? c.tags?.includes(selectedTag) : true;
       const matchesFilterTab = 
         filterTab === "all" ? true :
         filterTab === "favorites" ? !!c.isFavorite :
         filterTab === "recent" ? true : true;
 
-      return matchesSearch && matchesTag && matchesFilterTab;
+      return matchesSearch && matchesCategory && matchesTag && matchesFilterTab;
     }).sort((a,b) => b.createdAt - a.createdAt);
-  }, [contacts, searchQuery, selectedTag, filterTab]);
+  }, [contacts, searchQuery, selectedCategory, selectedTag, filterTab]);
 
   const generateVCard = (profile: UserProfile | null) => {
     if (!profile) return "";
@@ -1214,13 +1265,13 @@ export default function App() {
               <button 
                 onClick={() => setShowFilterModal(true)}
                 className={`p-3 border rounded-2xl transition shadow-xs relative ${
-                  selectedTag 
+                  selectedTag || selectedCategory
                     ? 'bg-[#C5A880] text-stone-900 border-[#B89768]' 
                     : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-white'
                 }`}
               >
                 <SlidersHorizontal size={18} />
-                {selectedTag && (
+                {(selectedTag || selectedCategory) && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-stone-900 rounded-full border-2 border-white" />
                 )}
               </button>
@@ -1263,13 +1314,13 @@ export default function App() {
             {filteredContacts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center px-6">
                 <div className="w-16 h-16 bg-[#E8E2D8] text-stone-700 rounded-full flex items-center justify-center mb-4 border border-[#D5CDBD] shadow-sm">
-                  {searchQuery || selectedTag ? <Search size={28} /> : <ScanLine size={28} />}
+                  {searchQuery || selectedTag || selectedCategory ? <Search size={28} /> : <ScanLine size={28} />}
                 </div>
                 <h2 className="text-lg font-semibold text-stone-900 mb-1">
-                  {searchQuery || selectedTag ? t.noMatches : t.noCards}
+                  {searchQuery || selectedTag || selectedCategory ? t.noMatches : t.noCards}
                 </h2>
                 <p className="text-sm text-stone-500">
-                  {searchQuery || selectedTag ? t.tryAdjusting : t.tapToScan}
+                  {searchQuery || selectedTag || selectedCategory ? t.tryAdjusting : t.tapToScan}
                 </p>
               </div>
             ) : (
@@ -1324,8 +1375,15 @@ export default function App() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-stone-900 text-base truncate">{contact.name || t.unknown}</h3>
-                          <p className="text-xs text-stone-500 truncate mt-0.5">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <h3 className="font-bold text-stone-900 text-base truncate">{contact.name || t.unknown}</h3>
+                            {contact.category && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8E2D8] text-[#5C5243] border border-[#D5CDBD]">
+                                {contact.category}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-stone-500 truncate">
                             {contact.jobTitle}{contact.jobTitle && contact.company ? " · " : ""}{contact.company}
                           </p>
                         </div>
@@ -1465,6 +1523,39 @@ export default function App() {
                 onChange={(val) => setEditForm({...editForm, address: val})} 
               />
 
+              {/* CATEGORY FIELD */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-bold text-stone-900 mb-1.5 ml-1">
+                  <span className="text-stone-700"><Building2 size={18} /></span>
+                  {t.category}
+                </label>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={editForm.category || ""}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-stone-900 outline-none focus:border-stone-900 focus:bg-white focus:ring-1 focus:ring-stone-900 transition placeholder:text-stone-400 font-medium text-sm"
+                    placeholder={lang === "vi" ? "Chọn hoặc nhập lĩnh vực (Ví dụ: Ngân hàng, Bảo hiểm)..." : "Type or select industry..."}
+                  />
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {PRESET_CATEGORIES.map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, category: cat })}
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all border ${
+                          editForm.category === cat
+                            ? 'bg-[#C5A880] text-stone-900 border-[#B89768] font-bold shadow-xs'
+                            : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* NOTES FIELD */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-bold text-stone-900 mb-1.5 ml-1">
@@ -1563,6 +1654,12 @@ export default function App() {
               <h2 className="text-xl font-bold text-stone-900 mb-0.5">{selectedContact.name || t.noName}</h2>
               <p className="text-xs font-medium text-stone-600">{selectedContact.jobTitle}</p>
               <p className="text-xs text-stone-500 mt-0.5">{selectedContact.company}</p>
+              {selectedContact.category && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E8E2D8] text-[#5C5243] text-xs font-semibold border border-[#D5CDBD]">
+                  <Building2 size={13} />
+                  {selectedContact.category}
+                </div>
+              )}
               
               {/* 3 CIRCULAR QUICK ACTIONS */}
               <div className="grid grid-cols-3 gap-6 mt-6 w-full max-w-xs">
@@ -1646,7 +1743,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between py-2">
+              <div className="flex items-center justify-between py-2 border-b border-stone-100">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-[#FAF7F2] text-stone-600 flex items-center justify-center">
                     <MapPin size={16} />
@@ -1657,6 +1754,20 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {selectedContact.category && (
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#FAF7F2] text-stone-600 flex items-center justify-center">
+                      <Building2 size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-stone-900">{selectedContact.category}</p>
+                      <p className="text-[11px] text-stone-400">{lang === "vi" ? "Lĩnh vực" : "Industry"}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* NOTES CARD */}
@@ -2229,66 +2340,109 @@ export default function App() {
         </div>
       )}
 
-      {/* TAG FILTER MODAL */}
+      {/* FILTER MODAL (Category & Tags) */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center transition-all duration-300">
           <div className="absolute inset-0" onClick={() => setShowFilterModal(false)} />
-          <div className="relative w-full max-w-md bg-white border-t border-stone-200 rounded-t-[32px] p-6 shadow-2xl z-10 animate-in slide-in-from-bottom duration-200 max-h-[80dvh] overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white border-t border-stone-200 rounded-t-[32px] p-6 shadow-2xl z-10 animate-in slide-in-from-bottom duration-200 max-h-[85dvh] overflow-y-auto">
             <div className="w-12 h-1 bg-stone-300 rounded-full mx-auto mb-6" />
             
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
                 <SlidersHorizontal size={20} className="text-[#C5A880]" />
-                {lang === "vi" ? "Bộ lọc thẻ danh bạ" : "Filter by Tags"}
+                {lang === "vi" ? "Bộ lọc danh bạ" : "Filter Contacts"}
               </h3>
-              {selectedTag && (
+              {(selectedCategory || selectedTag) && (
                 <button 
-                  onClick={() => setSelectedTag(null)}
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setSelectedTag(null);
+                  }}
                   className="text-xs text-red-600 hover:underline font-medium"
                 >
-                  {lang === "vi" ? "Bỏ lọc" : "Clear filter"}
+                  {lang === "vi" ? "Bỏ lọc tất cả" : "Clear all filters"}
                 </button>
               )}
             </div>
 
-            <p className="text-xs text-stone-500 mb-4">
-              {lang === "vi" 
-                ? "Chọn thẻ để lọc danh bạ tương ứng:" 
-                : "Select a tag to filter your contacts:"}
-            </p>
-
-            {allTags.length === 0 ? (
-              <p className="text-sm text-stone-400 italic py-4 text-center">
-                {lang === "vi" ? "Chưa có thẻ nào trong hệ thống" : "No tags found"}
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2 mb-6">
+            {/* SECTION 1: LĨNH VỰC (CATEGORY) */}
+            <div className="mb-6">
+              <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Building2 size={14} className="text-[#C5A880]" />
+                {t.categoryFilter}
+              </h4>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setSelectedTag(null)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold transition-all border ${
-                    !selectedTag 
+                  onClick={() => setSelectedCategory(null)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                    !selectedCategory 
                       ? 'bg-stone-900 text-white border-stone-900 shadow-xs' 
                       : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
                   }`}
                 >
-                  {lang === "vi" ? "Tất cả thẻ" : "All Tags"}
+                  {t.allCategories}
                 </button>
-                {allTags.map(tag => (
+                {allCategories.map(cat => (
                   <button
-                    key={tag}
-                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                    className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${
-                      selectedTag === tag 
+                    key={cat}
+                    onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      selectedCategory === cat 
                         ? 'bg-[#C5A880] text-stone-900 border-[#B89768] shadow-xs' 
                         : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
                     }`}
                   >
-                    <Tag size={12} className={selectedTag === tag ? "text-stone-900" : "text-stone-400"} />
-                    {tag}
+                    {cat}
                   </button>
                 ))}
               </div>
-            )}
+            </div>
+
+            {/* SECTION 2: THẺ (TAGS) */}
+            <div className="mb-6">
+              <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Tag size={14} className="text-[#C5A880]" />
+                {lang === "vi" ? "Thẻ phân loại" : "Tags"}
+                {selectedCategory && (
+                  <span className="text-[10px] text-stone-400 font-normal lowercase ml-1">
+                    ({lang === "vi" ? `thuộc ${selectedCategory}` : `in ${selectedCategory}`})
+                  </span>
+                )}
+              </h4>
+
+              {allTags.length === 0 ? (
+                <p className="text-xs text-stone-400 italic py-2">
+                  {lang === "vi" ? "Không có thẻ phù hợp" : "No tags found"}
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setSelectedTag(null)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      !selectedTag 
+                        ? 'bg-stone-900 text-white border-stone-900 shadow-xs' 
+                        : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                    }`}
+                  >
+                    {lang === "vi" ? "Tất cả thẻ" : "All Tags"}
+                  </button>
+                  {allTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                        selectedTag === tag 
+                          ? 'bg-[#C5A880] text-stone-900 border-[#B89768] shadow-xs' 
+                          : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                      }`}
+                    >
+                      <Tag size={12} className={selectedTag === tag ? "text-stone-900" : "text-stone-400"} />
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button 
               onClick={() => setShowFilterModal(false)}

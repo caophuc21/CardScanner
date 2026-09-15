@@ -8,6 +8,7 @@ export interface Contact {
   website: string;
   address: string;
   tags?: string[];
+  category?: string;
   notes?: string;
   avatarUrl?: string;
   isFavorite?: boolean;
