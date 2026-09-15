@@ -814,6 +814,7 @@ export default function App() {
 
   // Swipe & Deletion states
   const [swipedContactId, setSwipedContactId] = useState<string | null>(null);
+  const [contactToDeleteId, setContactToDeleteId] = useState<string | null>(null);
   const touchStartRef = useRef<{ id: string; x: number; y: number } | null>(null);
 
   const deleteContact = async (id: string) => {
@@ -894,9 +895,9 @@ export default function App() {
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   const [gdriveFileUrl, setGdriveFileUrl] = useState<string | null>(null);
 
-  // Prevent background scrolling when scan menu, export menu, exit modal, filter modal, account modal, or login modal is open
+  // Prevent background scrolling when scan menu, export menu, exit modal, filter modal, account modal, delete modal, or login modal is open
   useEffect(() => {
-    if (showScanMenu || showExportMenu || showLoginPrompt || showExitConfirmModal || showFilterModal || showAccountModal) {
+    if (showScanMenu || showExportMenu || showLoginPrompt || showExitConfirmModal || showFilterModal || showAccountModal || contactToDeleteId !== null) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -904,7 +905,7 @@ export default function App() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showScanMenu, showExportMenu, showLoginPrompt, showExitConfirmModal, showFilterModal, showAccountModal]);
+  }, [showScanMenu, showExportMenu, showLoginPrompt, showExitConfirmModal, showFilterModal, showAccountModal, contactToDeleteId]);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -1291,7 +1292,7 @@ export default function App() {
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
-                          deleteContact(contact.id);
+                          setContactToDeleteId(contact.id);
                         }}
                         className="bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold text-xs flex flex-col items-center justify-center h-full px-5 rounded-2xl shadow-sm transition-all"
                       >
@@ -1680,7 +1681,7 @@ export default function App() {
 
             {/* DELETE CONTACT BUTTON */}
             <button 
-              onClick={() => deleteContact(selectedContact.id)}
+              onClick={() => setContactToDeleteId(selectedContact.id)}
               className="w-full bg-red-50 hover:bg-red-100 active:scale-98 text-red-600 font-bold py-3.5 rounded-2xl border border-red-200 shadow-xs flex items-center justify-center gap-2 transition-all text-sm"
             >
               <Trash2 size={18} />
@@ -1992,42 +1993,52 @@ export default function App() {
       {showScanMenu && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center transition-all duration-300">
           <div className="absolute inset-0" onClick={() => setShowScanMenu(false)} />
-          <div className="relative w-full max-w-md bg-zinc-900/90 border-t border-white/10 backdrop-blur-2xl rounded-t-[32px] p-6 shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-10 animate-in slide-in-from-bottom duration-200 max-h-[90dvh] overflow-y-auto">
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-            <h3 className="text-lg font-bold text-center text-white mb-6">Quét Danh Thiếp / Scan Card</h3>
+          <div className="relative w-full max-w-md bg-white border-t border-stone-200 rounded-t-[32px] p-6 shadow-2xl z-10 animate-in slide-in-from-bottom duration-200 max-h-[90dvh] overflow-y-auto text-stone-900">
+            <div className="w-12 h-1 bg-stone-300 rounded-full mx-auto mb-6" />
+            <h3 className="text-lg font-bold text-center text-stone-900 mb-6">
+              {lang === "vi" ? "Quét danh thiếp" : "Scan Business Card"}
+            </h3>
             <div className="grid grid-cols-2 gap-4 mb-6">
               <button 
                 onClick={() => {
                   setShowScanMenu(false);
                   cameraInputRef.current?.click();
                 }}
-                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                className="flex flex-col items-center justify-center p-6 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
               >
-                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-3 group-hover:bg-blue-500/30 transition-colors">
+                <div className="w-12 h-12 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-3 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
                   <Camera size={24} />
                 </div>
-                <span className="text-sm font-medium text-white/95">Chụp ảnh mới</span>
-                <span className="text-[10px] text-white/50 mt-1">Sử dụng Camera</span>
+                <span className="text-sm font-semibold text-stone-900">
+                  {lang === "vi" ? "Chụp ảnh mới" : "Take Photo"}
+                </span>
+                <span className="text-[10px] text-stone-500 mt-1">
+                  {lang === "vi" ? "Sử dụng Camera" : "Use Camera"}
+                </span>
               </button>
               <button 
                 onClick={() => {
                   setShowScanMenu(false);
                   galleryInputRef.current?.click();
                 }}
-                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                className="flex flex-col items-center justify-center p-6 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
               >
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3 group-hover:bg-emerald-500/30 transition-colors">
+                <div className="w-12 h-12 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-3 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
                   <Upload size={24} />
                 </div>
-                <span className="text-sm font-medium text-white/95">Tải ảnh lên</span>
-                <span className="text-[10px] text-white/50 mt-1">Chọn từ thư viện</span>
+                <span className="text-sm font-semibold text-stone-900">
+                  {lang === "vi" ? "Tải ảnh lên" : "Upload Photo"}
+                </span>
+                <span className="text-[10px] text-stone-500 mt-1">
+                  {lang === "vi" ? "Chọn từ thư viện" : "Choose from Gallery"}
+                </span>
               </button>
             </div>
             <button 
               onClick={() => setShowScanMenu(false)}
-              className="w-full py-4 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-2xl border border-white/10 font-medium transition-colors"
+              className="w-full py-3.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-2xl border border-stone-200 transition-colors text-sm"
             >
-              Hủy / Cancel
+              {lang === "vi" ? "Hủy" : "Cancel"}
             </button>
           </div>
         </div>
@@ -2037,9 +2048,9 @@ export default function App() {
       {showExportMenu && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center transition-all duration-300">
           <div className="absolute inset-0" onClick={() => setShowExportMenu(false)} />
-          <div className="relative w-full max-w-md bg-zinc-900/90 border-t border-white/10 backdrop-blur-2xl rounded-t-[32px] p-6 shadow-[0_-8px_32px_0_rgba(0,0,0,0.5)] z-10 animate-in slide-in-from-bottom duration-200 max-h-[90dvh] overflow-y-auto">
-            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-            <h3 className="text-lg font-bold text-center text-white mb-6">
+          <div className="relative w-full max-w-md bg-white border-t border-stone-200 rounded-t-[32px] p-6 shadow-2xl z-10 animate-in slide-in-from-bottom duration-200 max-h-[90dvh] overflow-y-auto text-stone-900">
+            <div className="w-12 h-1 bg-stone-300 rounded-full mx-auto mb-6" />
+            <h3 className="text-lg font-bold text-center text-stone-900 mb-6">
               {lang === "vi" ? "Xuất dữ liệu danh bạ" : "Export Contact Data"}
             </h3>
             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -2048,13 +2059,13 @@ export default function App() {
                   setShowExportMenu(false);
                   exportToCSV();
                 }}
-                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                className="flex flex-col items-center justify-center p-6 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
               >
-                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 mb-3 group-hover:bg-purple-500/30 transition-colors">
+                <div className="w-12 h-12 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-3 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
                   <Download size={24} />
                 </div>
-                <span className="text-sm font-medium text-white/95">Tải file Excel (.csv)</span>
-                <span className="text-[10px] text-white/50 mt-1">Lưu về máy tính</span>
+                <span className="text-sm font-semibold text-stone-900">Tải file Excel (.csv)</span>
+                <span className="text-[10px] text-stone-500 mt-1">Lưu về máy tính</span>
               </button>
               
               <button 
@@ -2063,21 +2074,62 @@ export default function App() {
                   handleExportToGoogleDrive();
                 }}
                 disabled={isExportingToDrive}
-                className="flex flex-col items-center justify-center p-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group disabled:opacity-50"
+                className="flex flex-col items-center justify-center p-6 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group disabled:opacity-50"
               >
-                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 mb-3 group-hover:bg-blue-500/30 transition-colors">
+                <div className="w-12 h-12 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-3 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
                   {isExportingToDrive ? <Loader2 size={24} className="animate-spin" /> : <Cloud size={24} />}
                 </div>
-                <span className="text-sm font-medium text-white/95">Lưu Google Drive</span>
-                <span className="text-[10px] text-white/50 mt-1">Chuyển thành Google Sheets</span>
+                <span className="text-sm font-semibold text-stone-900">Lưu Google Drive</span>
+                <span className="text-[10px] text-stone-500 mt-1">Chuyển thành Google Sheets</span>
               </button>
             </div>
             <button 
               onClick={() => setShowExportMenu(false)}
-              className="w-full py-4 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-2xl border border-white/10 font-medium transition-colors"
+              className="w-full py-3.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-2xl border border-stone-200 transition-colors text-sm"
             >
               {lang === "vi" ? "Hủy" : "Cancel"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {contactToDeleteId !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={() => setContactToDeleteId(null)} 
+          />
+          <div className="relative w-full max-w-sm bg-white border border-stone-200 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200 text-stone-900">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 border border-red-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+              <AlertTriangle size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-stone-900 mb-1.5">
+              {lang === "vi" ? "Bạn có muốn xoá không?" : "Are you sure you want to delete?"}
+            </h3>
+            <p className="text-xs text-stone-500 mb-6 leading-relaxed">
+              {lang === "vi" 
+                ? "Liên hệ này sẽ bị xóa khỏi danh bạ và không thể khôi phục." 
+                : "This contact will be permanently deleted and cannot be restored."}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setContactToDeleteId(null)}
+                className="flex-1 py-3.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold rounded-xl text-sm border border-stone-200 transition-colors"
+              >
+                {lang === "vi" ? "Không" : "Cancel"}
+              </button>
+              <button
+                onClick={() => {
+                  const id = contactToDeleteId;
+                  setContactToDeleteId(null);
+                  if (id) deleteContact(id);
+                }}
+                className="flex-1 py-3.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-sm transition-colors shadow-md active:scale-98"
+              >
+                {lang === "vi" ? "Đồng ý" : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2086,25 +2138,19 @@ export default function App() {
       {showExitConfirmModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowExitConfirmModal(false)} />
-          <div className="relative w-full max-w-sm bg-[#1C1A17] border border-[#3A352E] backdrop-blur-2xl rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200 text-white">
-            <div className="w-12 h-12 rounded-full bg-[#C5A880]/20 text-[#C5A880] border border-[#C5A880]/30 flex items-center justify-center mx-auto mb-4">
+          <div className="relative w-full max-w-sm bg-white border border-stone-200 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl z-10 text-center animate-in zoom-in-95 duration-200 text-stone-900">
+            <div className="w-12 h-12 rounded-full bg-[#E8E2D8] text-[#5C5243] border border-[#D5CDBD] flex items-center justify-center mx-auto mb-4">
               <AlertTriangle size={24} />
             </div>
-            <h3 className="text-lg font-bold text-white mb-1.5">
+            <h3 className="text-lg font-bold text-stone-900 mb-1.5">
               {lang === "vi" ? "Bạn có muốn quay lại?" : "Discard Changes?"}
             </h3>
-            <p className="text-xs text-white/70 mb-6 leading-relaxed">
+            <p className="text-xs text-stone-500 mb-6 leading-relaxed">
               {lang === "vi" 
                 ? "Nếu quay lại sẽ mất thông tin mới quét" 
                 : "Unsaved scanned details will be lost"}
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowExitConfirmModal(false)}
-                className="flex-1 py-3.5 px-4 bg-[#C5A880] hover:bg-[#B89768] text-[#1C1A17] font-semibold rounded-xl text-sm transition-colors shadow-md"
-              >
-                {lang === "vi" ? "Tiếp tục chỉnh sửa" : "Continue editing"}
-              </button>
               <button
                 onClick={() => {
                   setShowExitConfirmModal(false);
@@ -2115,9 +2161,15 @@ export default function App() {
                     setView("contacts");
                   }
                 }}
-                className="flex-1 py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white/90 rounded-xl text-sm font-medium border border-white/15 transition-colors"
+                className="flex-1 py-3.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-xl text-sm border border-stone-200 transition-colors"
               >
                 {lang === "vi" ? "Quay lại" : "Discard"}
+              </button>
+              <button
+                onClick={() => setShowExitConfirmModal(false)}
+                className="flex-1 py-3.5 px-4 bg-[#C5A880] hover:bg-[#B89768] text-stone-900 font-semibold rounded-xl text-sm transition-colors shadow-md active:scale-98"
+              >
+                {lang === "vi" ? "Tiếp tục" : "Continue"}
               </button>
             </div>
           </div>
@@ -2158,6 +2210,12 @@ export default function App() {
 
             <div className="flex gap-3">
               <button
+                onClick={() => setShowAccountModal(false)}
+                className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-xl text-xs transition-colors border border-stone-200"
+              >
+                Đóng
+              </button>
+              <button
                 onClick={() => {
                   syncContacts(true);
                   setShowAccountModal(false);
@@ -2165,12 +2223,6 @@ export default function App() {
                 className="flex-1 py-3 bg-[#C5A880] hover:bg-[#B89768] text-stone-900 font-semibold rounded-xl text-xs transition-colors shadow-xs"
               >
                 Đồng bộ ngay
-              </button>
-              <button
-                onClick={() => setShowAccountModal(false)}
-                className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium rounded-xl text-xs transition-colors"
-              >
-                Đóng
               </button>
             </div>
           </div>
