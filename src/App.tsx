@@ -1,8 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight, CreditCard, Trash2, UserPlus } from "lucide-react";
+import { Camera, ScanLine, Users, ChevronLeft, Plus, Phone, Mail, Globe, Building2, MapPin, Briefcase, Save, Loader2, User, Search, Tag, QrCode, Edit2, X, Settings, Cloud, Download, LogIn, LogOut, Chrome, Eye, EyeOff, Lock, Upload, AlertTriangle, Star, MessageSquare, Share2, SlidersHorizontal, ChevronRight, CreditCard, Trash2 } from "lucide-react";
 import { Contact, UserProfile } from "./types";
 import { normalizeAndPrioritizePhone } from "./utils/phone";
-import { generateVCard, shareOrSaveVCard, exportContactsToVCard } from "./utils/vcard";
 import { QRCodeSVG } from "qrcode.react";
 import { auth, isFirebaseConfigured, db } from "./firebase";
 import { 
@@ -1182,6 +1181,10 @@ export default function App() {
     }).sort((a,b) => b.createdAt - a.createdAt);
   }, [contacts, searchQuery, selectedCategory, selectedTag, filterTab]);
 
+  const generateVCard = (profile: UserProfile | null) => {
+    if (!profile) return "";
+    return `BEGIN:VCARD\nVERSION:3.0\nFN:${profile.name || ""}\nORG:${profile.company || ""}\nTITLE:${profile.jobTitle || ""}\nTEL:${profile.phone || ""}\nEMAIL:${profile.email || ""}\nURL:${profile.website || ""}\nADR:;;${profile.address || ""};;;;\nEND:VCARD`;
+  };
 
   return (
     <div className="min-h-screen flex flex-col font-sans text-stone-900 bg-white max-w-md mx-auto relative pb-24">
@@ -1658,58 +1661,38 @@ export default function App() {
                 </div>
               )}
               
-              {/* 4 CIRCULAR QUICK ACTIONS */}
-              <div className="grid grid-cols-4 gap-3 mt-6 w-full max-w-sm">
+              {/* 3 CIRCULAR QUICK ACTIONS */}
+              <div className="grid grid-cols-3 gap-6 mt-6 w-full max-w-xs">
                 <a 
                   href={`tel:${selectedContact.phone}`}
                   className="flex flex-col items-center gap-1.5 group"
                 >
-                  <div className="w-11 h-11 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
                     <Phone size={18} />
                   </div>
-                  <span className="text-[11px] font-medium text-stone-600">{lang === "vi" ? "Gọi" : "Call"}</span>
-                </a>
-
-                <a 
-                  href={`sms:${selectedContact.phone}`}
-                  className="flex flex-col items-center gap-1.5 group"
-                >
-                  <div className="w-11 h-11 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
-                    <MessageSquare size={18} />
-                  </div>
-                  <span className="text-[11px] font-medium text-stone-600">{lang === "vi" ? "Nhắn tin" : "SMS"}</span>
+                  <span className="text-[11px] font-medium text-stone-600">Gọi</span>
                 </a>
 
                 <a 
                   href={`mailto:${selectedContact.email}`}
                   className="flex flex-col items-center gap-1.5 group"
                 >
-                  <div className="w-11 h-11 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
                     <Mail size={18} />
                   </div>
                   <span className="text-[11px] font-medium text-stone-600">Email</span>
                 </a>
 
-                <button 
-                  onClick={() => shareOrSaveVCard(selectedContact)}
-                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
-                  title={lang === "vi" ? "Lưu vào danh bạ điện thoại" : "Save to Phone Contacts"}
+                <a 
+                  href={`sms:${selectedContact.phone}`}
+                  className="flex flex-col items-center gap-1.5 group"
                 >
-                  <div className="w-11 h-11 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
-                    <UserPlus size={18} />
+                  <div className="w-12 h-12 rounded-full bg-[#FAF7F2] border border-[#E5DFD5] flex items-center justify-center text-stone-700 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                    <MessageSquare size={18} />
                   </div>
-                  <span className="text-[11px] font-medium text-stone-600">{lang === "vi" ? "Lưu danh bạ" : "Save VCF"}</span>
-                </button>
+                  <span className="text-[11px] font-medium text-stone-600">Nhắn tin</span>
+                </a>
               </div>
-
-              {/* SAVE TO PHONE CONTACTS PRIMARY BUTTON */}
-              <button
-                onClick={() => shareOrSaveVCard(selectedContact)}
-                className="w-full mt-5 py-3 px-4 rounded-2xl bg-[#5C5243] hover:bg-[#4A4235] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
-              >
-                <UserPlus size={18} />
-                <span>{lang === "vi" ? "Đồng bộ vào danh bạ điện thoại (.vcf)" : "Sync to Phone Contacts (.vcf)"}</span>
-              </button>
             </div>
 
             {/* DETAIL ROWS */}
@@ -2181,33 +2164,19 @@ export default function App() {
             <h3 className="text-lg font-bold text-center text-stone-900 mb-6">
               {lang === "vi" ? "Xuất dữ liệu danh bạ" : "Export Contact Data"}
             </h3>
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <button 
-                onClick={() => {
-                  setShowExportMenu(false);
-                  exportContactsToVCard(contacts);
-                }}
-                className="flex flex-col items-center justify-center p-3 sm:p-4 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group text-center cursor-pointer"
-              >
-                <div className="w-11 h-11 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-2 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
-                  <UserPlus size={20} />
-                </div>
-                <span className="text-xs font-semibold text-stone-900 line-clamp-1">{lang === "vi" ? "Lưu Danh bạ" : "Phone Contacts"}</span>
-                <span className="text-[9px] text-stone-500 mt-0.5">Tệp vCard (.vcf)</span>
-              </button>
-
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <button 
                 onClick={() => {
                   setShowExportMenu(false);
                   exportToCSV();
                 }}
-                className="flex flex-col items-center justify-center p-3 sm:p-4 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group text-center cursor-pointer"
+                className="flex flex-col items-center justify-center p-6 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
               >
-                <div className="w-11 h-11 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-2 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
-                  <Download size={20} />
+                <div className="w-12 h-12 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-3 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                  <Download size={24} />
                 </div>
-                <span className="text-xs font-semibold text-stone-900 line-clamp-1">{lang === "vi" ? "File Excel" : "Excel File"}</span>
-                <span className="text-[9px] text-stone-500 mt-0.5">Tệp .CSV</span>
+                <span className="text-sm font-semibold text-stone-900">Tải file Excel (.csv)</span>
+                <span className="text-[10px] text-stone-500 mt-1">Lưu về máy tính</span>
               </button>
               
               <button 
@@ -2216,13 +2185,13 @@ export default function App() {
                   handleExportToGoogleDrive();
                 }}
                 disabled={isExportingToDrive}
-                className="flex flex-col items-center justify-center p-3 sm:p-4 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group disabled:opacity-50 text-center cursor-pointer"
+                className="flex flex-col items-center justify-center p-6 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group disabled:opacity-50"
               >
-                <div className="w-11 h-11 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-2 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
-                  {isExportingToDrive ? <Loader2 size={20} className="animate-spin" /> : <Cloud size={20} />}
+                <div className="w-12 h-12 rounded-full bg-[#E8E2D8] border border-[#D5CDBD] flex items-center justify-center text-[#5C5243] mb-3 group-hover:bg-[#C5A880] group-hover:text-stone-900 transition-colors shadow-xs">
+                  {isExportingToDrive ? <Loader2 size={24} className="animate-spin" /> : <Cloud size={24} />}
                 </div>
-                <span className="text-xs font-semibold text-stone-900 line-clamp-1">Google Drive</span>
-                <span className="text-[9px] text-stone-500 mt-0.5">Google Sheets</span>
+                <span className="text-sm font-semibold text-stone-900">Lưu Google Drive</span>
+                <span className="text-[10px] text-stone-500 mt-1">Chuyển thành Google Sheets</span>
               </button>
             </div>
             <button 
